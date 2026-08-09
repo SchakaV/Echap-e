@@ -1,0 +1,14 @@
+{
+  "name": "velo-jeu-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Serveur multijoueur en ligne pour Échappée (jeu de course cycliste)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
