@@ -160,7 +160,12 @@ function renderLobby() {
 
   const team = myTeam();
   const myTeamEl = $('#online-my-team');
-  if (team) {
+  const editingMyTeam = myTeamEl.contains(document.activeElement);
+  if (team && !editingMyTeam) {
+    // Ne reconstruit ce bloc que si l'utilisateur n'est pas en train d'y
+    // taper — sinon, recréer les champs à chaque frappe (à cause de l'écho
+    // renvoyé par le serveur) fait perdre le focus et le curseur après
+    // chaque lettre.
     const specOptions = Object.values(SPECIALIZATIONS).map(s => `<option value="${s.key}">${s.label}</option>`).join('');
     myTeamEl.innerHTML = `<div class="riders-row">${team.riders.map((r, i) => `
       <div class="rider-chip">
@@ -174,7 +179,7 @@ function renderLobby() {
       el.addEventListener('change', pushMyRoster);
       el.addEventListener('input', pushMyRoster);
     });
-  } else {
+  } else if (!team) {
     myTeamEl.innerHTML = '<p class="top3-empty">…</p>';
   }
 
@@ -196,15 +201,19 @@ function renderLobby() {
   }
 }
 
+let pushRosterTimer = null;
 function pushMyRoster() {
   const team = myTeam();
   if (!team) return;
-  const rows = Array.from($('#online-my-team').querySelectorAll('.rider-chip'));
-  const riders = rows.map(row => ({
-    name: row.querySelector('[data-role="name"]').value,
-    specKey: row.querySelector('[data-role="spec"]').value,
-  }));
-  Net.client.send({ type: 'updateRoster', riders });
+  clearTimeout(pushRosterTimer);
+  pushRosterTimer = setTimeout(() => {
+    const rows = Array.from($('#online-my-team').querySelectorAll('.rider-chip'));
+    const riders = rows.map(row => ({
+      name: row.querySelector('[data-role="name"]').value,
+      specKey: row.querySelector('[data-role="spec"]').value,
+    }));
+    Net.client.send({ type: 'updateRoster', riders });
+  }, 250);
 }
 
 /* ============================= COURSE ============================= */
