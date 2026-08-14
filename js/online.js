@@ -6,9 +6,24 @@
 
 import { NetClient } from './net.js';
 import { SPECIALIZATIONS } from './rider.js';
+import { TEAM_COLORS } from './colors.js';
 import * as ui from './ui.js';
 
 const $ = sel => document.querySelector(sel);
+
+const TOKEN_KEY = 'velo-jeu-player-token';
+function getOrCreateToken() {
+  let t = null;
+  try { t = localStorage.getItem(TOKEN_KEY); } catch { /* stockage indisponible */ }
+  if (!t) {
+    t = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { localStorage.setItem(TOKEN_KEY, t); } catch { /* tant pis */ }
+  }
+  return t;
+}
+function saveToken(t) {
+  try { localStorage.setItem(TOKEN_KEY, t); } catch { /* tant pis */ }
+}
 
 const Net = {
   client: null,
@@ -75,6 +90,7 @@ function bindConnectScreen(nav) {
       client.on('joined', (msg) => {
         Net.clientId = msg.clientId;
         Net.code = msg.code;
+        if (msg.token) saveToken(msg.token);
       });
       client.on('room', (msg) => {
         Net.room = msg.room;
@@ -91,7 +107,7 @@ function bindConnectScreen(nav) {
         errEl.textContent = 'Connexion au serveur perdue.';
       });
 
-      client.send({ type: 'join', name, code: code || undefined });
+      client.send({ type: 'join', name, code: code || undefined, token: getOrCreateToken() });
       nav('screen-online-lobby');
     } catch (e) {
       errEl.textContent = e.message || 'Connexion impossible.';
@@ -167,7 +183,19 @@ function renderLobby() {
     // renvoyé par le serveur) fait perdre le focus et le curseur après
     // chaque lettre.
     const specOptions = Object.values(SPECIALIZATIONS).map(s => `<option value="${s.key}">${s.label}</option>`).join('');
-    myTeamEl.innerHTML = `<div class="riders-row">${team.riders.map((r, i) => `
+    const otherColors = new Set(Net.room.teams.filter(t => t.id !== team.id).map(t => t.color));
+    const swatches = TEAM_COLORS.map(color => {
+      const taken = otherColors.has(color) && color !== team.color;
+      const selected = color === team.color;
+      return `<button type="button" class="color-swatch${selected ? ' selected' : ''}${taken ? ' taken' : ''}" data-color="${color}" style="background:${color}" ${taken ? 'disabled' : ''} title="${taken ? 'Déjà utilisée' : color}"></button>`;
+    }).join('');
+    myTeamEl.innerHTML = `
+      <div class="team-color-row">
+        <button type="button" class="team-swatch team-swatch-btn" data-role="color-btn" style="background:${team.color}" title="Changer la couleur de l'équipe"></button>
+        <span style="font-size:13px;color:var(--chalk-dim);">${team.name}</span>
+      </div>
+      <div class="color-palette hidden" id="online-color-palette">${swatches}</div>
+      <div class="riders-row">${team.riders.map((r, i) => `
       <div class="rider-chip">
         <input type="text" data-i="${i}" data-role="name" value="${r.name}">
         <select data-i="${i}" data-role="spec">${specOptions}</select>
@@ -175,9 +203,19 @@ function renderLobby() {
     team.riders.forEach((r, i) => {
       myTeamEl.querySelector(`select[data-i="${i}"]`).value = r.specKey;
     });
-    myTeamEl.querySelectorAll('[data-role]').forEach(el => {
+    myTeamEl.querySelectorAll('[data-role="name"], [data-role="spec"]').forEach(el => {
       el.addEventListener('change', pushMyRoster);
       el.addEventListener('input', pushMyRoster);
+    });
+    const palette = myTeamEl.querySelector('#online-color-palette');
+    myTeamEl.querySelector('[data-role="color-btn"]').addEventListener('click', () => {
+      palette.classList.toggle('hidden');
+    });
+    palette.querySelectorAll('.color-swatch').forEach(btn => {
+      btn.addEventListener('click', () => {
+        Net.client.send({ type: 'updateColor', color: btn.dataset.color });
+        palette.classList.add('hidden');
+      });
     });
   } else if (!team) {
     myTeamEl.innerHTML = '<p class="top3-empty">…</p>';
@@ -285,6 +323,7 @@ function breakdownText(rollInfo) {
   if (rollInfo.sprintBonus) bits.push(`sprint +${rollInfo.sprintBonus}`);
   if (rollInfo.inBreakaway) bits.push(`échappée +${rollInfo.breakawayBonus}`);
   if (rollInfo.draftBonus) bits.push(`aspiration +${rollInfo.draftBonus}`);
+  if (rollInfo.windBonus) bits.push(`protection du vent +${rollInfo.windBonus}`);
   return `${bits.join(' · ')} = <b>${rollInfo.total}</b> case(s).`;
 }
 

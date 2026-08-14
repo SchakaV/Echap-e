@@ -143,6 +143,22 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 .team-card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
 .team-name{font-family:var(--font-display); font-size:22px; letter-spacing:.02em; display:flex; align-items:center; gap:10px;}
 .team-swatch{width:16px;height:16px;border-radius:50%;display:inline-block;}
+.team-swatch-btn{border:1px solid rgba(255,255,255,.4); cursor:pointer; padding:0;}
+.team-swatch-btn:hover{transform:scale(1.15);}
+.color-palette{
+  display:flex; flex-wrap:wrap; gap:8px;
+  margin:-4px 0 14px; padding:10px;
+  background: var(--asphalt); border:1px solid var(--line); border-radius:8px;
+}
+.color-palette.hidden{display:none;}
+.color-swatch{
+  width:24px; height:24px; border-radius:50%;
+  border:2px solid transparent; cursor:pointer; padding:0;
+}
+.color-swatch.selected{border-color:var(--chalk); box-shadow:0 0 0 2px var(--asphalt), 0 0 0 3px var(--chalk);}
+.color-swatch.taken{opacity:.25; cursor:not-allowed;}
+.color-swatch:not(.taken):hover{transform:scale(1.15);}
+.team-color-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
 .team-tag{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--chalk-dim); border:1px solid var(--line); padding:2px 8px; border-radius:999px;}
 .riders-row{display:flex; flex-wrap:wrap; gap:10px;}
 .rider-chip{

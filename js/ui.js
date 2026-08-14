@@ -2,13 +2,25 @@
 
 import { SPECIALIZATIONS } from './rider.js';
 import { randomFirstName } from './names.js';
+import { TEAM_COLORS } from './colors.js';
 
-// Couleurs d'équipe — les maillots distinctifs (vert/jaune) se distinguent
-// par un halo autour du vélo, pas par la couleur de fond, donc aucun besoin
-// d'exclure le vert ou le jaune de cette palette.
-export const TEAM_COLORS = [
-  '#f4c430', '#3fae67', '#e0453a', '#4a90d9', '#c25fd6', '#e08a3c', '#3fd6c6', '#d9457e',
-];
+export { TEAM_COLORS };
+
+/** Compare deux entrées de classement général au temps (maillot jaune) : le
+ *  plus petit retard cumulé gagne ; à égalité, on compare les classements
+ *  d'étape un par un pour départager — mêmes règles que dans main.js. */
+function compareYellow(entryA, entryB) {
+  const ya = entryA.yellowPoints || 0;
+  const yb = entryB.yellowPoints || 0;
+  if (ya !== yb) return ya - yb;
+  const ra = entryA.stageRanks || [];
+  const rb = entryB.stageRanks || [];
+  const n = Math.min(ra.length, rb.length);
+  for (let i = 0; i < n; i++) {
+    if (ra[i] !== rb[i]) return ra[i] - rb[i];
+  }
+  return 0;
+}
 
 /** Icône de cycliste vu de profil, sur son vélo. Le maillot (torse + bras)
  *  est coloré via la variable CSS --rider-color posée sur le token parent ;
@@ -49,7 +61,7 @@ export function renderTeams(container, teams, { onChange } = {}) {
     head.className = 'team-card-head';
     head.innerHTML = `
       <div class="team-name">
-        <span class="team-swatch" style="background:${team.color}"></span>
+        <button type="button" class="team-swatch team-swatch-btn" data-role="color-btn" style="background:${team.color}" title="Changer la couleur de l'équipe"></button>
         <input type="text" value="${team.name}" data-role="team-name" style="background:transparent;border:none;color:inherit;font-family:inherit;font-size:inherit;font-weight:inherit;width:200px;">
       </div>
       <span class="team-tag">${team.isAI ? 'IA' : 'Joueur'}</span>
@@ -59,6 +71,30 @@ export function renderTeams(container, teams, { onChange } = {}) {
       onChange && onChange();
     });
     card.appendChild(head);
+
+    const palette = document.createElement('div');
+    palette.className = 'color-palette hidden';
+    const otherColors = new Set(teams.filter((_, i) => i !== tIdx).map(t => t.color));
+    TEAM_COLORS.forEach(color => {
+      const taken = otherColors.has(color) && color !== team.color;
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'color-swatch' + (color === team.color ? ' selected' : '') + (taken ? ' taken' : '');
+      dot.style.background = color;
+      dot.disabled = taken;
+      dot.title = taken ? 'Déjà utilisée par une autre équipe' : color;
+      dot.addEventListener('click', () => {
+        team.color = color;
+        palette.classList.add('hidden');
+        renderTeams(container, teams, { onChange });
+        onChange && onChange();
+      });
+      palette.appendChild(dot);
+    });
+    card.appendChild(palette);
+    head.querySelector('[data-role="color-btn"]').addEventListener('click', () => {
+      palette.classList.toggle('hidden');
+    });
 
     const ridersRow = document.createElement('div');
     ridersRow.className = 'riders-row';
@@ -123,34 +159,21 @@ export function renderTeams(container, teams, { onChange } = {}) {
 /* ============================= PLATEAU ============================= */
 
 /**
- * Dessine le plateau, en "pavage" décalé (une voie sur deux est décalée
- * d'une demi-case, façon pavé autobloquant).
- *
- * viewState: { board, riders, finishColumn }
- * opts:
- *   - highlightCells: [{column,lane}]  cases d'arrivée possibles pour le dé en cours
- *   - placeableCells: [{column,lane}]  cases libres cliquables pendant le placement
- *   - onCellClick(column, lane)
+ * Construit la grille statique du plateau (cases + repères de colonnes) et
+ * la met en cache sur l'élément DOM. Coûteux (crée toutes les cases), donc
+ * n'est appelé que quand la structure du plateau change réellement (nouvelle
+ * étape) — voir renderBoard() ci-dessous, qui décide quand rebâtir.
  */
-export function renderBoard(boardEl, viewState, opts = {}) {
+function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
   boardEl.innerHTML = '';
-  const { board, riders, finishColumn } = viewState;
-  const { highlightCells = [], placeableCells = [], onCellClick, activeCell = null, autoScroll = false, jerseys = null } = opts;
   const startDepth = board.startDepth || 0;
-
-  const byCell = new Map();
-  riders.forEach(r => {
-    if (r.finished || r.column === null || r.column === undefined) return;
-    byCell.set(`${r.column}-${r.lane}`, r);
-  });
-  const highlightSet = new Set(highlightCells.map(c => `${c.column}-${c.lane}`));
-  const placeableSet = new Set(placeableCells.map(c => `${c.column}-${c.lane}`));
-  const activeKey = activeCell ? `${activeCell.column}-${activeCell.lane}` : null;
+  const cellWidth = 58;
+  const totalColumns = board.length + startDepth + 1;
+  boardEl.style.minWidth = `${totalColumns * cellWidth}px`;
 
   const firstCol = -startDepth;
-  let activeCellEl = null;
+  const cellsByKey = new Map();
 
-  // Ligne de repère des colonnes
   const markerRow = document.createElement('div');
   markerRow.className = 'board-row';
   for (let c = firstCol; c <= finishColumn; c++) {
@@ -174,39 +197,148 @@ export function renderBoard(boardEl, viewState, opts = {}) {
       if (c === finishColumn) cls += ' finish';
       if (isStartZone) cls += ' start-zone';
       if (c === -1) cls += ' start-line';
-
-      const key = `${c}-${lane}`;
-      if (highlightSet.has(key)) cls += ' highlight';
-      if (placeableSet.has(key)) cls += ' placeable';
-      if (activeKey === key) cls += ' active-cell';
       cell.className = cls;
       cell.dataset.col = c;
       cell.dataset.lane = lane;
-
-      if ((highlightSet.has(key) || placeableSet.has(key)) && onCellClick) {
-        cell.addEventListener('click', () => onCellClick(c, lane));
-      }
-
-      const rider = byCell.get(key);
-      if (rider) {
-        const token = document.createElement('div');
-        let tokenCls = 'rider-token';
-        let jerseyBadge = '';
-        if (jerseys && jerseys.yellow === rider.id) { tokenCls += ' jersey-yellow'; jerseyBadge = '🟡'; }
-        else if (jerseys && jerseys.green === rider.id) { tokenCls += ' jersey-green'; jerseyBadge = '🟢'; }
-        token.className = tokenCls;
-        token.style.setProperty('--rider-color', rider.teamColor);
-        token.title = `${rider.name} (${rider.spec.label})${jerseyBadge ? ' ' + jerseyBadge : ''}`;
-        token.innerHTML = cyclistIconSVG() + `<span class="rider-badge">${rider.spec.short}</span>`
-          + (jerseyBadge ? `<span class="jersey-flag">${jerseyBadge}</span>` : '');
-        cell.appendChild(token);
-      }
       row.appendChild(cell);
-      if (activeKey === key) activeCellEl = cell;
+      cellsByKey.set(`${c}-${lane}`, cell);
     }
     boardEl.appendChild(row);
   }
 
+  const cache = {
+    structureKey,
+    cellsByKey,
+    tokensByRiderId: new Map(),
+    highlightSet: new Set(),
+    placeableSet: new Set(),
+    activeKey: null,
+    onCellClick: null,
+  };
+
+  // Un seul écouteur délégué sur le plateau entier, posé une fois pour
+  // toutes (au lieu d'un écouteur par case recréé à chaque rendu). Il lit
+  // toujours l'état courant (cache vivant sur boardEl), donc reste valide
+  // même après une reconstruction de la grille.
+  if (!boardEl._hasBoardClickDelegation) {
+    boardEl.addEventListener('click', (ev) => {
+      const cellEl = ev.target.closest('.cell');
+      if (!cellEl) return;
+      const live = boardEl._boardCache;
+      if (!live || !live.onCellClick) return;
+      const key = `${cellEl.dataset.col}-${cellEl.dataset.lane}`;
+      if (!live.highlightSet.has(key) && !live.placeableSet.has(key)) return;
+      live.onCellClick(Number(cellEl.dataset.col), Number(cellEl.dataset.lane));
+    });
+    boardEl._hasBoardClickDelegation = true;
+  }
+
+  return cache;
+}
+
+/** Met à jour les classes dynamiques (surbrillance/case cliquable/case
+ *  active) en ne touchant que les cases dont l'état a changé depuis le
+ *  dernier rendu, plutôt que de repasser sur toute la grille. */
+function updateDynamicCellClasses(cache, highlightSet, placeableSet, activeKey) {
+  cache.highlightSet.forEach(key => {
+    if (!highlightSet.has(key)) cache.cellsByKey.get(key)?.classList.remove('highlight');
+  });
+  cache.placeableSet.forEach(key => {
+    if (!placeableSet.has(key)) cache.cellsByKey.get(key)?.classList.remove('placeable');
+  });
+  if (cache.activeKey && cache.activeKey !== activeKey) {
+    cache.cellsByKey.get(cache.activeKey)?.classList.remove('active-cell');
+  }
+
+  highlightSet.forEach(key => cache.cellsByKey.get(key)?.classList.add('highlight'));
+  placeableSet.forEach(key => cache.cellsByKey.get(key)?.classList.add('placeable'));
+  if (activeKey) cache.cellsByKey.get(activeKey)?.classList.add('active-cell');
+
+  cache.highlightSet = highlightSet;
+  cache.placeableSet = placeableSet;
+  cache.activeKey = activeKey;
+}
+
+/** Déplace/actualise les jetons des coureurs en place, sans jamais toucher
+ *  à la grille. Un jeton déjà créé pour un coureur est simplement rattaché
+ *  à sa nouvelle case (déplacement DOM peu coûteux) plutôt que détruit et
+ *  recréé ; seuls les coureurs qui ont fini/disparu perdent leur jeton. */
+function updateRiderTokens(cache, riders, jerseys) {
+  const activeIds = new Set();
+
+  riders.forEach(rider => {
+    if (rider.finished || rider.column === null || rider.column === undefined) return;
+    const key = `${rider.column}-${rider.lane}`;
+    const cellEl = cache.cellsByKey.get(key);
+    if (!cellEl) return;
+    activeIds.add(rider.id);
+
+    let token = cache.tokensByRiderId.get(rider.id);
+    if (!token) {
+      token = document.createElement('div');
+      token.innerHTML = cyclistIconSVG() + '<span class="rider-badge"></span><span class="jersey-flag"></span>';
+      cache.tokensByRiderId.set(rider.id, token);
+    }
+
+    let tokenCls = 'rider-token';
+    let jerseyBadge = '';
+    if (jerseys && jerseys.yellow === rider.id) { tokenCls += ' jersey-yellow'; jerseyBadge = '🟡'; }
+    else if (jerseys && jerseys.green === rider.id) { tokenCls += ' jersey-green'; jerseyBadge = '🟢'; }
+    token.className = tokenCls;
+    token.style.setProperty('--rider-color', rider.teamColor);
+    token.title = `${rider.name} (${rider.spec.label})${jerseyBadge ? ' ' + jerseyBadge : ''}`;
+    const badgeEl = token.querySelector('.rider-badge');
+    if (badgeEl) badgeEl.textContent = rider.spec.short;
+    const flagEl = token.querySelector('.jersey-flag');
+    if (flagEl) flagEl.textContent = jerseyBadge;
+
+    if (token.parentElement !== cellEl) cellEl.appendChild(token);
+  });
+
+  for (const [riderId, token] of cache.tokensByRiderId) {
+    if (!activeIds.has(riderId)) {
+      token.remove();
+      cache.tokensByRiderId.delete(riderId);
+    }
+  }
+}
+
+/**
+ * Dessine le plateau, en "pavage" décalé (une voie sur deux est décalée
+ * d'une demi-case, façon pavé autobloquant).
+ *
+ * viewState: { board, riders, finishColumn }
+ * opts:
+ *   - highlightCells: [{column,lane}]  cases d'arrivée possibles pour le dé en cours
+ *   - placeableCells: [{column,lane}]  cases libres cliquables pendant le placement
+ *   - onCellClick(column, lane)
+ *
+ * La grille (cases + repères) n'est reconstruite que quand la structure du
+ * plateau change réellement (dimensions ou terrain différents — donc en
+ * pratique au changement d'étape) ; les appels suivants ne font que déplacer
+ * les jetons des coureurs et basculer quelques classes CSS, au lieu de
+ * détruire/recréer des centaines d'éléments à chaque case franchie.
+ */
+export function renderBoard(boardEl, viewState, opts = {}) {
+  const { board, riders, finishColumn } = viewState;
+  const { highlightCells = [], placeableCells = [], onCellClick = null, activeCell = null, autoScroll = false, jerseys = null } = opts;
+
+  const structureKey = `${board.length}|${board.width}|${board.startDepth || 0}|${finishColumn}|${board.terrain.join(',')}`;
+  let cache = boardEl._boardCache;
+  if (!cache || cache.structureKey !== structureKey) {
+    cache = buildStaticGrid(boardEl, board, finishColumn, structureKey);
+    boardEl._boardCache = cache;
+  }
+  cache.onCellClick = onCellClick;
+
+  const highlightSet = new Set(highlightCells.map(c => `${c.column}-${c.lane}`));
+  const placeableSet = new Set(placeableCells.map(c => `${c.column}-${c.lane}`));
+  const activeKey = activeCell ? `${activeCell.column}-${activeCell.lane}` : null;
+
+  updateDynamicCellClasses(cache, highlightSet, placeableSet, activeKey);
+  updateRiderTokens(cache, riders, jerseys);
+
+  const activeCellEl = activeKey ? cache.cellsByKey.get(activeKey) : null;
   if (activeCellEl) {
     if (autoScroll === true) {
       scrollBoardToFraction(boardEl, activeCellEl, 0.25);
@@ -346,7 +478,7 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
     // de chaque étape (le plus petit total gagne, comme un classement au temps).
     html += '<h3 style="font-family:var(--font-display);letter-spacing:.03em;margin-top:28px;color:var(--maillot-jaune)">🟡 Classement général — maillot jaune (au temps)</h3>';
     html += '<table><thead><tr><th>Rang</th><th>Coureur</th><th>Équipe</th><th>Manches de retard</th></tr></thead><tbody>';
-    const yellowSorted = [...gc].sort((a, b) => (a.yellowPoints || 0) - (b.yellowPoints || 0));
+    const yellowSorted = [...gc].sort(compareYellow);
     yellowSorted.forEach((r, i) => {
       const jersey = i === 0 ? '🟡 ' : '';
       html += `<tr><td>${i + 1}</td><td>${jersey}${r.name}</td><td style="color:${r.teamColor}">●</td><td>${r.yellowPoints || 0}</td></tr>`;
@@ -401,7 +533,7 @@ export function renderTopThreeYellow(container, gcEntries) {
     container.innerHTML = '<p class="top3-empty">Disponible à partir de la 2ᵉ étape.</p>';
     return;
   }
-  const sorted = [...gcEntries].sort((a, b) => (a.yellowPoints || 0) - (b.yellowPoints || 0)).slice(0, 3);
+  const sorted = [...gcEntries].sort(compareYellow).slice(0, 3);
   container.innerHTML = sorted.map((r, i) => `
     <div class="top3-row yellow">
       <span class="top3-rank">${i + 1}</span>

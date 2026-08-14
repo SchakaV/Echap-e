@@ -7,13 +7,9 @@
 import { generateBoard, setStartDepth } from '../js/board.js';
 import { createRider, SPECIALIZATIONS } from '../js/rider.js';
 import * as engine from '../js/engine.js';
-import { aiChooseCell } from '../js/ai.js';
 import { pointsForRank } from '../js/scoring.js';
 import { randomFirstName } from '../js/names.js';
-
-const TEAM_COLORS = [
-  '#f4c430', '#3fae67', '#e0453a', '#4a90d9', '#c25fd6', '#e08a3c', '#3fd6c6', '#d9457e',
-];
+import { TEAM_COLORS } from '../js/colors.js';
 
 let roomIdCounter = 1;
 
@@ -22,6 +18,10 @@ function makeRoomCode() {
   let code = '';
   for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
+}
+
+function makeToken() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 function defaultRiders(isAI) {
@@ -40,7 +40,7 @@ export class Room {
     this.id = roomIdCounter++;
     this.clients = new Map();   // clientId -> ws
     this.players = new Map();   // clientId -> { name, teamId }
-    this.teams = [];            // { id, name, color, isAI, ownerId, riders: [{name, specKey}] }
+    this.teams = [];            // { id, name, color, isAI, ownerId, ownerToken, riders: [{name, specKey}] }
     this.phase = 'lobby';       // lobby | racing | results
     this.config = { trackLength: 40, trackWidth: 3, terrainProfile: 'random', aiCount: 0 };
     this.hostId = null;
@@ -52,6 +52,7 @@ export class Room {
     this.state = null;          // état moteur (engine.createRaceState)
     this.order = [];
     this.orderIdx = 0;
+    this.pendingRoll = null;
   }
 
   addLog(message) {
@@ -59,22 +60,74 @@ export class Room {
     if (this.log.length > 200) this.log.shift();
   }
 
-  addPlayer(clientId, ws, name) {
+  usedColors(excludeTeamId) {
+    return new Set(this.teams.filter(t => t.id !== excludeTeamId).map(t => t.color));
+  }
+
+  nextFreeColor() {
+    const used = this.usedColors();
+    return TEAM_COLORS.find(c => !used.has(c)) || TEAM_COLORS[this.teams.length % TEAM_COLORS.length];
+  }
+
+  /**
+   * Ajoute un joueur. Si `token` correspond à une équipe existante encore
+   * marquée IA (reconnexion après déconnexion en cours de course), lui rend
+   * la main au lieu de créer une nouvelle équipe. Retourne le token à
+   * mémoriser côté client.
+   */
+  addPlayer(clientId, ws, name, token) {
     this.clients.set(clientId, ws);
+
+    if (token) {
+      const team = this.teams.find(t => t.ownerToken === token);
+      if (team) {
+        // Reprise de contrôle (l'équipe existe déjà, humaine ou repassée IA).
+        team.ownerId = clientId;
+        team.isAI = false;
+        if (team.riderObjs) team.riderObjs.forEach(r => { r.isAI = false; });
+        this.players.set(clientId, { name, teamId: team.id });
+        if (!this.hostId) this.hostId = clientId;
+        this.addLog(`${name} a repris le contrôle de ${team.name}.`);
+        return token;
+      }
+    }
+
+    if (this.phase !== 'lobby') {
+      // Pas de token valide et la course est déjà en cours : impossible de
+      // rejoindre en tant que nouvelle équipe à ce stade.
+      this.clients.delete(clientId);
+      return null;
+    }
+
+    const assignedToken = token || makeToken();
     const teamId = `team-${this.teams.length + 1}-${this.id}`;
-    const color = TEAM_COLORS[this.teams.length % TEAM_COLORS.length];
-    const team = { id: teamId, name: `Équipe de ${name}`, color, isAI: false, ownerId: clientId, riders: defaultRiders(false) };
+    const color = this.nextFreeColor();
+    const team = { id: teamId, name: `Équipe de ${name}`, color, isAI: false, ownerId: clientId, ownerToken: assignedToken, riders: defaultRiders(false) };
     this.teams.push(team);
     this.players.set(clientId, { name, teamId });
     if (!this.hostId) this.hostId = clientId;
     this.addLog(`${name} a rejoint la salle.`);
+    return assignedToken;
   }
 
+  /** Déconnexion : en lobby, l'équipe disparaît ; en course, l'IA prend le
+   *  relais (l'équipe reste, pour qu'on puisse la reprendre en revenant
+   *  avec le même token). */
   removePlayer(clientId) {
     const player = this.players.get(clientId);
+    const team = this.teams.find(t => t.ownerId === clientId);
     this.clients.delete(clientId);
     this.players.delete(clientId);
-    this.teams = this.teams.filter(t => t.ownerId !== clientId);
+
+    if (this.phase === 'lobby') {
+      this.teams = this.teams.filter(t => t.ownerId !== clientId);
+    } else if (team) {
+      team.isAI = true;
+      team.ownerId = null;
+      if (team.riderObjs) team.riderObjs.forEach(r => { r.isAI = true; });
+      this.addLog(`${team.name} est déconnectée — l'IA prend le relais.`);
+    }
+
     if (player) this.addLog(`${player.name} a quitté la salle.`);
     if (this.hostId === clientId) {
       this.hostId = this.players.size ? this.players.keys().next().value : null;
@@ -95,6 +148,15 @@ export class Room {
     }));
   }
 
+  updateColor(clientId, color) {
+    const team = this.teams.find(t => t.ownerId === clientId);
+    if (!team) return;
+    if (!TEAM_COLORS.includes(color)) return;
+    if (this.usedColors(team.id).has(color)) return; // déjà prise par une autre équipe
+    team.color = color;
+    if (team.riderObjs) team.riderObjs.forEach(r => { r.teamColor = color; });
+  }
+
   updateConfig(clientId, config) {
     if (clientId !== this.hostId || this.phase !== 'lobby') return;
     const c = this.config;
@@ -110,11 +172,9 @@ export class Room {
     if (clientId !== this.hostId || this.phase !== 'lobby') return;
     if (this.teams.length === 0) return;
 
-    let colorIdx = this.teams.length;
     for (let i = 0; i < this.config.aiCount; i++) {
-      const color = TEAM_COLORS[colorIdx % TEAM_COLORS.length];
-      colorIdx++;
-      this.teams.push({ id: `cpu-${i}-${this.id}`, name: `Équipe CPU ${i + 1}`, color, isAI: true, ownerId: null, riders: defaultRiders(true) });
+      const color = this.nextFreeColor();
+      this.teams.push({ id: `cpu-${i}-${this.id}`, name: `Équipe CPU ${i + 1}`, color, isAI: true, ownerId: null, ownerToken: null, riders: defaultRiders(true) });
     }
 
     this.board = generateBoard({
@@ -163,6 +223,7 @@ export class Room {
     this.state.round++;
     this.order = engine.roundOrder(this.state);
     this.orderIdx = 0;
+    this.pendingRoll = null;
   }
 
   /** Coureur dont c'est le tour, ou null si la manche est terminée. */
@@ -193,6 +254,7 @@ export class Room {
     engine.applyMove(this.state, rider, chosen ? chosen.column : target.cells[0].column, chosen ? chosen.lane : target.cells[0].lane, rollInfo);
     this.logMove(rider, rollInfo, target);
     this.orderIdx++;
+    this.pendingRoll = null;
   }
 
   logMove(rider, rollInfo, target) {
@@ -201,6 +263,7 @@ export class Room {
     if (rollInfo.sprintBonus) bits.push(`sprint +${rollInfo.sprintBonus}`);
     if (rollInfo.inBreakaway) bits.push(`échappée +${rollInfo.breakawayBonus}`);
     if (rollInfo.draftBonus) bits.push(`aspiration +${rollInfo.draftBonus}`);
+  if (rollInfo.windBonus) bits.push(`protection du vent +${rollInfo.windBonus}`);
     const bonusStr = bits.length ? ` (${bits.join(', ')})` : '';
     const blockedStr = target.blocked ? ' — bouchon !' : '';
     const finishStr = rider.finished ? ' 🏁' : '';
@@ -236,6 +299,7 @@ export class Room {
       hostId: this.hostId,
       code: this.code,
       config: this.config,
+      colorOptions: TEAM_COLORS,
       players: Array.from(this.players.entries()).map(([id, p]) => ({ id, name: p.name })),
       teams: this.teams.map(t => ({ id: t.id, name: t.name, color: t.color, isAI: t.isAI, ownerId: t.ownerId, riders: t.riders })),
       board: this.board,

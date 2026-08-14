@@ -108,3 +108,37 @@ export function terrainAt(board, column) {
 export function isSprintZone(board, column) {
   return column >= board.length - 4 && column < board.length;
 }
+
+/**
+ * Crée un plateau à partir d'une étape prédéfinie.
+ *
+ * Contrairement à generateBoard(), aucune case n'est générée
+ * aléatoirement.
+ */
+export function createFixedBoard(stage) {
+  if (!stage || !Array.isArray(stage.terrain)) {
+    throw new Error('Étape fixe invalide.');
+  }
+
+  if (stage.terrain.length !== stage.length) {
+    throw new Error(
+      `Plateau invalide : ${stage.terrain.length} terrains pour ${stage.length} cases.`
+    );
+  }
+
+  return {
+    length: stage.length,
+    width: stage.width,
+    terrain: [...stage.terrain],
+    profile: stage.type,
+    startDepth: 1,
+
+    // Informations spécifiques au Tour
+    tourStage: true,
+    stageNumber: stage.number,
+    stageName: stage.name,
+    distance: stage.distance,
+    scale: stage.scale,
+    features: stage.features ? [...stage.features] : [],
+  };
+}

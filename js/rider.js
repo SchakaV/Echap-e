@@ -35,9 +35,8 @@ export const SPECIALIZATIONS = {
     key: 'rouleur',
     label: 'Rouleur',
     short: 'ROU',
-    desc: '+1 en plaine et en vallon, relance le dé une fois s\'il tombe sur 1.',
+    desc: '+1 en plaine et en vallon.',
     terrainBonus: { plaine: 1, vallon: 1, montagne: 0 },
-    rerollOnOne: true,
   },
 };
 
@@ -67,6 +66,12 @@ export function createRider({ name, teamId, teamColor, specKey, isAI }) {
     // deux coureurs arrivés sur la même case pendant la même manche selon qui
     // y est vraiment arrivé le premier.
     arrivedSeq: 0,
+    // nombre de manches consécutives passées juste derrière un coéquipier —
+    // sert au bonus de protection contre le vent (voir engine.js).
+    teammateDraftStreak: 0,
+    // manche de départ personnelle (contre-la-montre uniquement — les
+    // coureurs ne partent pas tous à la même manche).
+    startRound: null,
     // classement général (course par étapes) : temps cumulé = somme des rangs/rounds
     totalPoints: 0,
   };

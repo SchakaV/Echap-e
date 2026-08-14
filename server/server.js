@@ -80,9 +80,13 @@ function broadcast(room, msg) {
 }
 
 /** Fait avancer la boucle de course tant que c'est au tour d'une IA ; rend
- *  la main dès qu'un joueur humain doit lancer le dé. */
+ *  la main dès qu'un joueur humain doit lancer le dé. Un jeton de tour
+ *  protège contre un double traitement si processTurn est relancé (ex :
+ *  reconnexion) pendant qu'une IA est déjà en train de jouer. */
 function processTurn(room) {
   if (!room.state || room.phase !== 'racing') return;
+  room.turnToken = (room.turnToken || 0) + 1;
+  const myTurnToken = room.turnToken;
 
   const rider = room.currentRider();
   if (!rider) {
@@ -94,11 +98,11 @@ function processTurn(room) {
 
   if (rider.isAI) {
     setTimeout(() => {
-      if (room.phase !== 'racing') return;
+      if (room.phase !== 'racing' || room.turnToken !== myTurnToken) return;
       const { rollInfo, target } = room.rollDice(rider);
       broadcast(room, { type: 'diceRolled', riderId: rider.id, rollInfo, cells: target.cells });
       setTimeout(() => {
-        if (room.phase !== 'racing') return;
+        if (room.phase !== 'racing' || room.turnToken !== myTurnToken) return;
         const cell = aiChooseCell(room.state, rider, target.cells);
         room.applyChoice(rider, rollInfo, target, cell.column, cell.lane);
         broadcastRoom(room);
@@ -127,22 +131,36 @@ wss.on('connection', (ws) => {
       switch (msg.type) {
         case 'join': {
           const name = String(msg.name || 'Joueur').slice(0, 20);
+          const token = typeof msg.token === 'string' && msg.token ? msg.token : null;
           if (msg.code) {
             room = getRoom(msg.code);
             if (!room) { send(ws, { type: 'error', message: `Salle "${msg.code}" introuvable.` }); return; }
-            if (room.phase !== 'lobby') { send(ws, { type: 'error', message: 'La course a déjà commencé dans cette salle.' }); return; }
+            if (room.phase !== 'lobby' && !(token && room.teams.some(t => t.ownerToken === token))) {
+              send(ws, { type: 'error', message: 'La course a déjà commencé dans cette salle.' });
+              return;
+            }
           } else {
             room = new Room();
             rooms.set(room.code, room);
           }
-          room.addPlayer(clientId, ws, name);
-          send(ws, { type: 'joined', clientId, code: room.code });
+          const assignedToken = room.addPlayer(clientId, ws, name, token);
+          if (!assignedToken) {
+            send(ws, { type: 'error', message: 'Impossible de rejoindre cette salle maintenant.' });
+            room = null;
+            return;
+          }
+          send(ws, { type: 'joined', clientId, code: room.code, token: assignedToken });
           broadcastRoom(room);
+          if (room.phase === 'racing') processTurn(room);
           break;
         }
 
         case 'updateRoster':
           if (room) { room.updateRoster(clientId, msg.riders); broadcastRoom(room); }
+          break;
+
+        case 'updateColor':
+          if (room) { room.updateColor(clientId, msg.color); broadcastRoom(room); }
           break;
 
         case 'updateConfig':

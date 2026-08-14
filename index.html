@@ -124,17 +124,59 @@
       <div class="card">
         <h3>Format</h3>
         <label class="field">
-          <span>Type d'épreuve</span>
-          <select id="race-format">
-            <option value="single">Course unique</option>
-            <option value="stage">Course par étapes</option>
+          <span>Catégorie de course</span>
+          <select id="race-category">
+            <option value="classic">Course classique</option>
+            <option value="tour2026">Tour de France 2026</option>
           </select>
         </label>
-        <label class="field" id="field-stage-count" style="display:none">
-          <span>Nombre d'étapes</span>
-          <input type="number" id="stage-count" min="2" max="10" value="3">
+
+        <label class="field" id="field-race-format">
+          <span>Type d'épreuve</span>
+            <select id="race-format">
+              <option value="single">Course unique</option>
+              <option value="stage">Course par étapes</option>
+              <option value="timetrial">Contre la montre</option>
+            </select>
         </label>
-      </div>
+        <h3>Format</h3>
+        <!-- Catégorie de course -->
+  <label class="field">
+    <span>Catégorie de course</span>
+    <select id="race-category">
+      <option value="classic">Course classique</option>
+      <option value="tour2026">Tour de France 2026</option>
+    </select>
+  </label>
+
+  <!-- Paramètres des courses classiques -->
+  <label class="field" id="field-race-format">
+    <span>Type d'épreuve</span>
+    <select id="race-format">
+      <option value="single">Course unique</option>
+      <option value="stage">Course par étapes</option>
+      <option value="timetrial">Contre la montre</option>
+    </select>
+  </label>
+
+  <label class="field" id="field-stage-count" style="display:none">
+    <span>Nombre d'étapes</span>
+    <input type="number" id="stage-count" min="2" max="10" value="3">
+  </label>
+
+  <label class="field" id="field-tt-stage" style="display:none">
+    <span>Contre-la-montre à l'étape</span>
+    <select id="tt-stage-select">
+      <option value="0">Aucun</option>
+    </select>
+    <small>
+      Largeur fixée à 3 voies pour cette étape, quel que soit le réglage
+      ci-dessus. S'il est à l'étape 1, l'ordre de départ est tiré au sort.
+      À partir de l'étape 2, les coureurs s'élancent du dernier au premier
+      du classement général au temps (maillot jaune).
+    </small>
+  </label>
+</div>
 
       <div class="card">
         <h3>Parcours</h3>
@@ -226,6 +268,7 @@
             <li><b>Ordre de jeu</b> : à chaque manche, le coureur le plus avancé joue en premier.</li>
             <li><b>Terrain</b> : plaine (vert), vallon (jaune), montagne (rouge) — chaque spécialité a ses bonus selon le terrain sous le coureur au moment du jet.</li>
             <li><b>Aspiration</b> : à la fin de chaque manche complète (une fois que tous les coureurs ont joué), tout coureur placé juste derrière un autre (même voie) gagne +1 au prochain jet.</li>
+            <li><b>Protection contre le vent</b> : si ce coureur juste devant est un coéquipier et que ça dure 2 manches d'affilée, +1 supplémentaire s'ajoute (cumulable avec l'aspiration normale).</li>
             <li><b>Échappée</b> : un baroudeur seul en tête, sans rival à moins de 4 cases derrière lui, gagne un bonus.</li>
             <li><b>Sprint final</b> : les 4 dernières cases avant la ligne donnent un bonus au sprinteur.</li>
             <li><b>Bouchon</b> : si aucun chemin libre n'existe sur la distance du dé, le coureur s'arrête à la dernière case atteignable.</li>
@@ -253,7 +296,16 @@
       </div>
     </div>
 
-    <div id="board-wrap">
+    <div id="board-wrap" style="
+    overflow-x:auto;
+    overflow-y:hidden;
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--asphalt-2);
+    padding:14px;
+    margin-bottom:18px;
+">
       <div id="board"></div>
     </div>
 

@@ -92,21 +92,8 @@ patience sur la toute première connexion de la session.
 
 - **Course unique uniquement** : pas encore de courses par étapes en ligne
   (donc pas de maillots ni de classement général sur cette version
-  multijoueur — uniquement le classement de la course et les points).
-- **Une salle = une course en cours** : pas de reprise après déconnexion en
-  cours de course (le joueur peut se reconnecter, mais avec un nouveau
-  client il rejoindra une nouvelle équipe plutôt que de récupérer la
-  sienne).
-- Pas de tchat.
-
-L'architecture (moteur de jeu séparé de l'affichage, déjà pensée pour ça
-dans la version solo) permettrait d'ajouter ces points assez naturellement
-par la suite.
-
-
-- **Course unique uniquement** : pas encore de courses par étapes en ligne
-  (donc pas de maillots ni de classement général sur cette version
-  multijoueur — uniquement le classement de la course et les points).
+  multijoueur — uniquement le classement de la course et les points). Le
+  contre-la-montre (nouveau en solo) n'est pas encore disponible en ligne.
 - **Une salle = une course en cours** : pas de reprise après déconnexion en
   cours de course (le joueur peut se reconnecter, mais avec un nouveau
   client il rejoindra une nouvelle équipe plutôt que de récupérer la
