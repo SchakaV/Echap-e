@@ -25,13 +25,30 @@ export function finishStage() {
   const timeOf = r => (rt.isTimeTrial ? engine.personalRounds(r) : r.finishRound);
   const winnerTime = winner ? timeOf(winner) : state.round;
 
+  // Maillot jaune : l'écart se mesure en « secondes ».
+  //  - 1 manche d'écart compte pour 10 secondes ;
+  //  - dans la même manche, chaque case d'écart (marge restante après la
+  //    ligne, via _rawTarget) compte pour 1 seconde.
+  // Le contre-la-montre échelonné ne permet pas de comparer l'écart en cases
+  // intra-manche entre coureurs : on n'y retient que la composante en manches.
+  const SECONDS_PER_ROUND = 10;
+  const SECONDS_PER_CELL = 1;
+  const computeYellowGap = (r) => {
+    const roundGap = (timeOf(r) - winnerTime) * SECONDS_PER_ROUND;
+    let cellGap = 0;
+    if (!rt.isTimeTrial && winner && r.finishRound === winner.finishRound) {
+      cellGap = ((winner._rawTarget || 0) - (r._rawTarget || 0)) * SECONDS_PER_CELL;
+    }
+    return roundGap + cellGap;
+  };
+
   const pointsByRiderId = new Map();
   state.riders.forEach(r => {
     const pts = pointsForRank(r.finishRank, state.board.profile);
     pointsByRiderId.set(r.id, pts);
     const gc = App.gc.get(r.id);
     gc.totalPoints += pts;
-    gc.yellowPoints = (gc.yellowPoints || 0) + (timeOf(r) - winnerTime);
+    gc.yellowPoints = (gc.yellowPoints || 0) + computeYellowGap(r);
     if (r.finishRank === 1) gc.stageWins = (gc.stageWins || 0) + 1;
     if (!gc.stageRanks) gc.stageRanks = [];
     gc.stageRanks.push(r.finishRank);
