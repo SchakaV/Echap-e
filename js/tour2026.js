@@ -81,7 +81,7 @@ export const TOUR_2026 = {
       // 1 case = 0,5 km
       length: 40,
 
-      width: 4,
+      width: 3,
 
       scale: 0.5,
 
@@ -153,7 +153,7 @@ export const TOUR_2026 = {
       // 1 case = 1 km
       length: 169,
 
-      width: 3,
+      width: 5,
 
       scale: 1,
 
@@ -262,7 +262,7 @@ export const TOUR_2026 = {
   // 1 case ≈ 1 km
   length: 196,
 
-  width: 3,
+  width: 5,
 
   scale: 1,
 
