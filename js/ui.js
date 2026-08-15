@@ -22,6 +22,23 @@ function compareYellow(entryA, entryB) {
   return 0;
 }
 
+/** Formate un écart en secondes (maillot jaune) en heure/minute/seconde :
+ *  les minutes sont notées avec une apostrophe simple (') et les secondes
+ *  avec une apostrophe double (''). Les unités nulles supéures sont omises.
+ *  Ex. 0 -> "0", 5 -> "5''", 65 -> "1' 05''", 3661 -> "1h 01' 01''". */
+function formatYellowTime(totalSeconds) {
+  const s = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  if (s === 0) return '0';
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+  if (hours > 0) return `${hours}h ${mm}' ${ss}''`;
+  if (minutes > 0) return `${minutes}' ${ss}''`;
+  return `${seconds}''`;
+}
+
 /** Icône de cycliste vu de profil, sur son vélo. Le maillot (torse + bras)
  *  est coloré via la variable CSS --rider-color posée sur le token parent ;
  *  le reste (cadre, roues, casque, jambe, peau) reste neutre. */
@@ -482,7 +499,7 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
     const yellowSorted = [...gc].sort(compareYellow);
     yellowSorted.forEach((r, i) => {
       const jersey = i === 0 ? '🟡 ' : '';
-      html += `<tr><td>${i + 1}</td><td>${jersey}${r.name}</td><td style="color:${r.teamColor}">●</td><td>${r.yellowPoints || 0}</td></tr>`;
+      html += `<tr><td>${i + 1}</td><td>${jersey}${r.name}</td><td style="color:${r.teamColor}">●</td><td>${i === 0 ? '0' : '+' + formatYellowTime(r.yellowPoints || 0)}</td></tr>`;
     });
     html += '</tbody></table>';
 
@@ -503,7 +520,7 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
     html += '<table><thead><tr><th>Rang</th><th>Équipe</th><th>Retard cumulé</th></tr></thead><tbody>';
     const teamSorted = [...teamStandings].sort((a, b) => a.yellowPoints - b.yellowPoints);
     teamSorted.forEach((t, i) => {
-      html += `<tr><td>${i + 1}</td><td style="color:${t.color}">● ${t.name}</td><td>${t.yellowPoints}</td></tr>`;
+      html += `<tr><td>${i + 1}</td><td style="color:${t.color}">● ${t.name}</td><td>${i === 0 ? '0' : '+' + formatYellowTime(t.yellowPoints)}</td></tr>`;
     });
     html += '</tbody></table>';
   }
@@ -540,7 +557,7 @@ export function renderTopThreeYellow(container, gcEntries) {
       <span class="top3-rank">${i + 1}</span>
       <span class="team-swatch" style="background:${r.teamColor}"></span>
       <span class="top3-name">${i === 0 ? '🟡 ' : ''}${r.name}</span>
-      <span class="top3-pts">${i === 0 ? '0' : '+' + (r.yellowPoints || 0)} s</span>
+      <span class="top3-pts">${i === 0 ? '0' : '+' + formatYellowTime(r.yellowPoints || 0)}</span>
     </div>
   `).join('');
 }
