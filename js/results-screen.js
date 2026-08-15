@@ -29,15 +29,33 @@ export function finishStage() {
   //  - 1 manche d'écart compte pour 10 secondes ;
   //  - dans la même manche, chaque case d'écart (marge restante après la
   //    ligne, via _rawTarget) compte pour 1 seconde.
+  // L'écart en cases se calcule manche par manche : pour chaque manche
+  // d'arrivée, le premier à franchir la ligne (le _rawTarget le plus élevé)
+  // sert de référence ; les autres coureurs de cette même manche cumulent
+  // leurs cases d'écart par rapport à lui. Le premier de chaque manche
+  // n'a donc que la composante en manches (×10 s).
   // Le contre-la-montre échelonné ne permet pas de comparer l'écart en cases
   // intra-manche entre coureurs : on n'y retient que la composante en manches.
   const SECONDS_PER_ROUND = 10;
   const SECONDS_PER_CELL = 1;
+  const bestRawByRound = new Map();
+  if (!rt.isTimeTrial) {
+    for (const r of state.riders) {
+      const fr = timeOf(r);
+      if (fr === null || fr === undefined) continue;
+      const raw = r._rawTarget || 0;
+      if (!bestRawByRound.has(fr) || raw > bestRawByRound.get(fr)) {
+        bestRawByRound.set(fr, raw);
+      }
+    }
+  }
   const computeYellowGap = (r) => {
     const roundGap = (timeOf(r) - winnerTime) * SECONDS_PER_ROUND;
     let cellGap = 0;
-    if (!rt.isTimeTrial && winner && r.finishRound === winner.finishRound) {
-      cellGap = ((winner._rawTarget || 0) - (r._rawTarget || 0)) * SECONDS_PER_CELL;
+    if (!rt.isTimeTrial) {
+      const fr = timeOf(r);
+      const best = bestRawByRound.get(fr) || 0;
+      cellGap = (best - (r._rawTarget || 0)) * SECONDS_PER_CELL;
     }
     return roundGap + cellGap;
   };
