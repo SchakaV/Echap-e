@@ -474,10 +474,11 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
   html += '</tbody></table>';
 
   if (isStageRace && gc) {
-    // Maillot jaune : classement au nombre de manches perdues sur le vainqueur
-    // de chaque étape (le plus petit total gagne, comme un classement au temps).
+    // Maillot jaune : classement au temps. L'écart se mesure en secondes :
+    // 1 manche d'écart = 10 s ; dans la même manche, chaque case d'écart = 1 s
+    // (le plus petit total gagne, comme un classement au temps réel).
     html += '<h3 style="font-family:var(--font-display);letter-spacing:.03em;margin-top:28px;color:var(--maillot-jaune)">🟡 Classement général — maillot jaune (au temps)</h3>';
-    html += '<table><thead><tr><th>Rang</th><th>Coureur</th><th>Équipe</th><th>Manches de retard</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Rang</th><th>Coureur</th><th>Équipe</th><th>Retard</th></tr></thead><tbody>';
     const yellowSorted = [...gc].sort(compareYellow);
     yellowSorted.forEach((r, i) => {
       const jersey = i === 0 ? '🟡 ' : '';
@@ -499,7 +500,7 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
   if (teamStandings && teamStandings.length) {
     const label = isStageRace ? 'Classement général par équipe (méthode maillot jaune)' : 'Classement par équipe (méthode maillot jaune)';
     html += `<h3 style="font-family:var(--font-display);letter-spacing:.03em;margin-top:28px;color:var(--maillot-jaune)">${label}</h3>`;
-    html += '<table><thead><tr><th>Rang</th><th>Équipe</th><th>Retard cumulé (manches)</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Rang</th><th>Équipe</th><th>Retard cumulé</th></tr></thead><tbody>';
     const teamSorted = [...teamStandings].sort((a, b) => a.yellowPoints - b.yellowPoints);
     teamSorted.forEach((t, i) => {
       html += `<tr><td>${i + 1}</td><td style="color:${t.color}">● ${t.name}</td><td>${t.yellowPoints}</td></tr>`;
@@ -539,7 +540,7 @@ export function renderTopThreeYellow(container, gcEntries) {
       <span class="top3-rank">${i + 1}</span>
       <span class="team-swatch" style="background:${r.teamColor}"></span>
       <span class="top3-name">${i === 0 ? '🟡 ' : ''}${r.name}</span>
-      <span class="top3-pts">${i === 0 ? '0' : '+' + (r.yellowPoints || 0)} m.</span>
+      <span class="top3-pts">${i === 0 ? '0' : '+' + (r.yellowPoints || 0)} s</span>
     </div>
   `).join('');
 }
