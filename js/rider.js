@@ -20,9 +20,12 @@ export const SPECIALIZATIONS = {
     key: 'baroudeur',
     label: 'Baroudeur',
     short: 'BAR',
-    desc: '+1 en plaine, +2 s\'il est seul en tête (échappée).',
-    terrainBonus: { plaine: 1, vallon: 0, montagne: 0 },
+    desc: '+2 s\'il est seul en tête (échappée). En contre-la-montre, +1 en plaine à la place.',
+    terrainBonus: { plaine: 0, vallon: 0, montagne: 0 },
     breakawayBonus: 2,
+    // En contre-la-montre, le baroudeur échange son bonus d'échappée contre
+    // un bonus de plaine (+1), puisqu'il roule seul contre la montre.
+    ttPlaineBonus: 1,
   },
   puncheur: {
     key: 'puncheur',

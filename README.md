@@ -266,8 +266,9 @@ velo-jeu/
 - **Spécialisations** :
   - **Grimpeur** : +2 en montagne, +1 en vallon.
   - **Sprinteur** : +3 dans les 4 dernières cases (sprint final), -1 en montagne.
-  - **Baroudeur** : +1 en plaine, +2 s'il est seul en tête (échappée : aucun
-    rival à moins de 4 cases derrière lui).
+  - **Baroudeur** : +2 s'il est seul en tête (échappée : aucun rival à
+    moins de 4 cases derrière lui). En contre-la-montre, ce bonus
+    d'échappée est remplacé par un bonus de +1 en plaine.
   - **Puncheur** : +2 en vallon.
   - **Rouleur** : +1 partout, relance le dé une fois s'il tombe sur 1.
 - **Aspiration** : un coureur qui termine une manche directement derrière un
