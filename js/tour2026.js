@@ -1578,35 +1578,153 @@ export const TOUR_2026 = {
 
 // ============================================================
 // ÉTAPE 12
-// Châteauroux → Châteauroux
-// Contre-la-montre individuel — 23,2 km
+// Circuit Nevers Magny-Cours → Chalon-sur-Saône
+// Plat — 179,1 km
 // ============================================================
 
 12: checkStage({
   number: 12,
 
-  name: 'Châteauroux → Châteauroux',
+  name: 'Circuit Nevers Magny-Cours → Chalon-sur-Saône',
 
-  type: 'timetrial',
+  type: 'flat',
 
   // Distance officielle
-  distance: 23.2,
+  distance: 179.1,
 
-  // CLM : 1 case = 0,5 km
-  length: 46,
+  // 1 case ≈ 1 km
+  length: 179,
 
-  // Largeur fixée à 3 voies pour un contre-la-montre
-  width: 3,
+  // Largeur : 5 voies
+  width: 5,
 
-  // Échelle du plateau
-  scale: 0.5,
+  scale: 1,
 
   terrain: terrainFromSegments([
-    // Parcours essentiellement roulant
-    [46, P]
+    // Approche de la Côte de Lanty
+    [74, P],
+
+    // Côte de Lanty
+    [2, M],
+
+    // Lanty → Côte de Cuzy
+    [19, P],
+
+    // Côte de Cuzy
+    [3, M],
+
+    // Cuzy → Côte de Montagny-lès-Buxy
+    [59, P],
+
+    // Côte de Montagny-lès-Buxy
+    [3, M],
+
+    // Montagny-lès-Buxy → Chalon-sur-Saône
+    [19, P]
   ]),
 
-  features: []
+  features: [
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — DECIZE
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Decize',
+
+      distance: 42.3,
+
+      column: 42
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE LANTY
+    // Km 76,5
+    // 2,1 km à 4 % — catégorie 4
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Lanty',
+
+      distanceStart: 74.4,
+      distanceEnd: 76.5,
+
+      columnStart: 74,
+      columnEnd: 77,
+
+      category: 4,
+
+      length: 2.1,
+
+      gradient: 4.0
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE CUZY
+    // Km 97,8
+    // 2,5 km à 4,5 % — catégorie 4
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Cuzy',
+
+      distanceStart: 95.3,
+      distanceEnd: 97.8,
+
+      columnStart: 95,
+      columnEnd: 98,
+
+      category: 4,
+
+      length: 2.5,
+
+      gradient: 4.5
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE MONTAGNY-LÈS-BUXY
+    // Km 159,4
+    // 2,7 km à 4,3 % — catégorie 4
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Montagny-lès-Buxy',
+
+      distanceStart: 156.7,
+      distanceEnd: 159.4,
+
+      columnStart: 157,
+      columnEnd: 159,
+
+      category: 4,
+
+      length: 2.7,
+
+      gradient: 4.3
+    },
+
+    // --------------------------------------------------------
+    // ARRIVÉE — CHALON-SUR-SAÔNE
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Chalon-sur-Saône',
+
+      distance: 179.1,
+
+      column: 179
+    }
+  ]
 }),
 
 // ============================================================
@@ -1717,25 +1835,1224 @@ export const TOUR_2026 = {
   ]
 }),
 
-    // ============================================================
-    // ÉTAPES 3 À 21
-    // ============================================================
-    //
-    // Elles seront ajoutées ici au fur et à mesure.
-    //
-    // Exemple :
-    //
-    // 3: checkStage({
-    //   number: 3,
-    //   name: 'Granollers → Les Angles',
-    //   type: 'mountain',
-    //   distance: 195.9,
-    //   length: 196,
-    //   width: 3,
-    //   scale: 1,
-    //   terrain: terrainFromSegments([...]),
-    //   features: [...]
-    // }),
+// ============================================================
+// ÉTAPE 14
+// Mulhouse → Le Markstein Fellering
+// Montagne — 155,3 km
+// ============================================================
+
+14: checkStage({
+  number: 14,
+
+  name: 'Mulhouse → Le Markstein Fellering',
+
+  type: 'mountain',
+
+  // Distance officielle
+  distance: 155.3,
+
+  // 1 case ≈ 1 km
+  length: 155,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Mulhouse → pied du Grand Ballon
+    [15, P],
+
+    // Grand Ballon
+    // 21,6 km à 4,7 % — catégorie 1
+    [22, M],
+
+    // Grand Ballon → pied du Col du Page
+    [25, V],
+
+    // Col du Page
+    // 9,8 km à 4,7 % — catégorie 2
+    [10, M],
+
+    // Col du Page → pied du Ballon d'Alsace
+    [14, V],
+
+    // Ballon d'Alsace
+    // 8,9 km à 6,9 % — catégorie 1
+    [9, M],
+
+    // Ballon d'Alsace → pied du Col du Haag
+    [43, V],
+
+    // Col du Haag
+    // 11,2 km à 7,3 % — catégorie 1
+    [12, M],
+
+    // Col du Haag → arrivée au Markstein
+    [5, V]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — WATTWILLER
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Wattwiller',
+
+      distance: 12.7,
+
+      column: 13
+    },
+
+    // --------------------------------------------------------
+    // GRAND BALLON
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Grand Ballon',
+
+      distanceStart: 15.0,
+      distanceEnd: 36.6,
+
+      columnStart: 15,
+      columnEnd: 37,
+
+      category: 1,
+
+      length: 21.6,
+
+      gradient: 4.7
+    },
+
+    // --------------------------------------------------------
+    // COL DU PAGE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col du Page',
+
+      distanceStart: 61.5,
+      distanceEnd: 71.3,
+
+      columnStart: 62,
+      columnEnd: 71,
+
+      category: 2,
+
+      length: 9.8,
+
+      gradient: 4.7
+    },
+
+    // --------------------------------------------------------
+    // BALLON D'ALSACE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Ballon d’Alsace',
+
+      distanceStart: 85.5,
+      distanceEnd: 94.4,
+
+      columnStart: 86,
+      columnEnd: 94,
+
+      category: 1,
+
+      length: 8.9,
+
+      gradient: 6.9
+    },
+
+    // --------------------------------------------------------
+    // COL DU HAAG
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col du Haag',
+
+      distanceStart: 138.2,
+      distanceEnd: 149.4,
+
+      columnStart: 138,
+      columnEnd: 149,
+
+      category: 1,
+
+      length: 11.2,
+
+      gradient: 7.3
+    }
+  ]
+}),
+
+// ============================================================
+// ÉTAPE 15
+// Champagnole → Plateau de Solaison
+// Montagne — 183,9 km
+// ============================================================
+
+15: checkStage({
+  number: 15,
+
+  name: 'Champagnole → Plateau de Solaison',
+
+  type: 'mountain',
+
+  // Distance officielle
+  distance: 183.9,
+
+  // 1 case ≈ 1 km
+  length: 184,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Champagnole → Côte des Rousses
+    [30, P],
+
+    // Côte des Rousses
+    // 6,6 km à 5,1 % — catégorie 3
+    [7, M],
+
+    // Côte des Rousses → approche du Salève
+    [94, V],
+
+    // Le Salève - Col de la Croisette
+    // 4,7 km à 11,2 % — catégorie 1
+    [5, M],
+
+    // Salève → Côte du Mont
+    [8, V],
+
+    // Côte du Mont
+    // 2,1 km à 8,3 % — catégorie 3
+    [3, M],
+
+    // Côte du Mont → pied de la montée finale
+    [26, V],
+
+    // Plateau de Solaison
+    // 11,3 km à 9 % — catégorie HC
+    [11, M]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — SAINT-LAURENT-EN-GRANDVAUX
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Saint-Laurent-en-Grandvaux',
+
+      distance: 16.8,
+
+      column: 17
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DES ROUSSES
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte des Rousses',
+
+      distanceStart: 30.2,
+      distanceEnd: 36.8,
+
+      columnStart: 30,
+      columnEnd: 37,
+
+      category: 3,
+
+      length: 6.6,
+
+      gradient: 5.1
+    },
+
+    // --------------------------------------------------------
+    // LE SALÈVE - COL DE LA CROISETTE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Le Salève - Col de la Croisette',
+
+      distanceStart: 131.3,
+      distanceEnd: 136.0,
+
+      columnStart: 131,
+      columnEnd: 136,
+
+      category: 1,
+
+      length: 4.7,
+
+      gradient: 11.2
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DU MONT
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte du Mont',
+
+      distanceStart: 143.9,
+      distanceEnd: 146.0,
+
+      columnStart: 144,
+      columnEnd: 146,
+
+      category: 3,
+
+      length: 2.1,
+
+      gradient: 8.3
+    },
+
+    // --------------------------------------------------------
+    // PLATEAU DE SOLAISON
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Plateau de Solaison',
+
+      distanceStart: 172.6,
+      distanceEnd: 183.9,
+
+      columnStart: 173,
+      columnEnd: 184,
+
+      category: 'HC',
+
+      length: 11.3,
+
+      gradient: 9.0
+    }
+  ]
+}),
+
+// ============================================================
+// ÉTAPE 16
+// Évian-les-Bains → Thonon-les-Bains
+// Contre-la-montre individuel — 26,1 km
+// ============================================================
+
+16: checkStage({
+  number: 16,
+
+  name: 'Évian-les-Bains → Thonon-les-Bains',
+
+  type: 'timetrial',
+
+  // Distance officielle
+  distance: 26.1,
+
+  // CLM : 1 case = 0,5 km
+  length: 52,
+
+  // Largeur fixée à 3 voies pour un contre-la-montre
+  width: 3,
+
+  // Échelle du plateau
+  scale: 0.5,
+
+  terrain: terrainFromSegments([
+    // Évian-les-Bains → Thonon-les-Bains
+    // Parcours vallonné avec la Côte de Larringes
+    [10, V],
+
+    // Côte de Larringes
+    // 9,7 km à 4,3 % — catégorie 2
+    [19, M],
+
+    // Larringes → Thonon-les-Bains
+    [23, V]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // POINT CHRONO INTERMÉDIAIRE N°1
+    // L'X — km 4,8
+    // --------------------------------------------------------
+
+    {
+      type: 'chrono',
+
+      name: "L'X",
+
+      distance: 4.8,
+
+      column: 10
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE LARRINGES
+    // Km 9,7 — 9,7 km à 4,3 % — catégorie 2
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Larringes',
+
+      distanceStart: 0,
+
+      distanceEnd: 9.7,
+
+      columnStart: 0,
+
+      columnEnd: 19,
+
+      category: 2,
+
+      length: 9.7,
+
+      gradient: 4.3
+    },
+
+    // --------------------------------------------------------
+    // POINT CHRONO INTERMÉDIAIRE N°3
+    // THONON-LES-BAINS — km 18,1
+    // --------------------------------------------------------
+
+    {
+      type: 'chrono',
+
+      name: 'Thonon-les-Bains - Bords de Dranse',
+
+      distance: 18.1,
+
+      column: 36
+    }
+  ]
+}),
+
+// ============================================================
+// ÉTAPE 17
+// Chambéry → Voiron
+// Plat — 174,7 km
+// ============================================================
+
+17: checkStage({
+  number: 17,
+
+  name: 'Chambéry → Voiron',
+
+  type: 'flat',
+
+  // Distance officielle
+  distance: 174.7,
+
+  // 1 case ≈ 1 km
+  length: 175,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Chambéry → Côte de Bassa
+    [19, P],
+
+    // Côte de Bassa
+    // 1,6 km à 5,5 % — catégorie 4
+    [2, M],
+
+    // Bassa → Côte de Rossillon
+    [14, V],
+
+    // Côte de Rossillon
+    // 1,7 km à 4,6 % — catégorie 4
+    [2, M],
+
+    // Rossillon → Col des Près
+    [12, V],
+
+    // Col des Près
+    // 3,6 km à 6,8 % — catégorie 3
+    [4, M],
+
+    // Col des Près → Côte de Saint-Jean-d'Arvey
+    [6, V],
+
+    // Côte de Saint-Jean-d'Arvey
+    // 1,2 km à 5,7 % — catégorie 4
+    [1, M],
+
+    // Saint-Jean-d'Arvey → Voiron
+    [115, P]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // CÔTE DE BASSA
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Bassa',
+
+      distanceStart: 17.6,
+      distanceEnd: 19.2,
+
+      columnStart: 18,
+      columnEnd: 19,
+
+      category: 4,
+
+      length: 1.6,
+
+      gradient: 5.5
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE ROSSILLON
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Rossillon',
+
+      distanceStart: 33.8,
+      distanceEnd: 35.5,
+
+      columnStart: 34,
+      columnEnd: 36,
+
+      category: 4,
+
+      length: 1.7,
+
+      gradient: 4.6
+    },
+
+    // --------------------------------------------------------
+    // COL DES PRÈS
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col des Près',
+
+      distanceStart: 46.0,
+      distanceEnd: 49.6,
+
+      columnStart: 46,
+      columnEnd: 50,
+
+      category: 3,
+
+      length: 3.6,
+
+      gradient: 6.8
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE SAINT-JEAN-D'ARVEY
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: "Côte de Saint-Jean-d'Arvey",
+
+      distanceStart: 58.3,
+      distanceEnd: 59.5,
+
+      columnStart: 58,
+      columnEnd: 60,
+
+      category: 4,
+
+      length: 1.2,
+
+      gradient: 5.7
+    },
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — COLOMBE
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Colombe',
+
+      distance: 147.5,
+
+      column: 148
+    }
+  ]
+}),
+
+// ============================================================
+// ÉTAPE 18
+// Voiron → Orcières-Merlette
+// Montagne — 185,2 km
+// ============================================================
+
+18: checkStage({
+  number: 18,
+
+  name: 'Voiron → Orcières-Merlette',
+
+  type: 'mountain',
+
+  // Distance officielle
+  distance: 185.2,
+
+  // 1 case ≈ 1 km
+  length: 185,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Voiron → Côte d'Engins
+    [37, M],
+
+    // Côte d'Engins → Côte de Monteynard
+    [55, V],
+
+    // Côte de Monteynard
+    [10, M],
+
+    // Monteynard → Côte des Terrasses
+    [20, V],
+
+    // Côte des Terrasses
+    [3, M],
+
+    // Terrasses → Côte de Saint-Léger-les-Mélèzes
+    [50, V],
+
+    // Côte de Saint-Léger-les-Mélèzes
+    [3, M],
+
+    // Saint-Léger-les-Mélèzes → Orcières-Merlette
+    [7, M]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // CÔTE D'ENGINS
+    // Km 36,7 — 11,5 km à 5,4 % — catégorie 1
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: "Côte d'Engins",
+
+      distanceStart: 25.2,
+      distanceEnd: 36.7,
+
+      columnStart: 25,
+      columnEnd: 37,
+
+      category: 1,
+
+      length: 11.5,
+
+      gradient: 5.4
+    },
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — CORPS
+    // Km 129,0
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Corps',
+
+      distance: 129.0,
+
+      column: 129
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE MONTEYNARD
+    // Km 92,2 — 9,7 km à 5 % — catégorie 2
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Monteynard',
+
+      distanceStart: 82.5,
+      distanceEnd: 92.2,
+
+      columnStart: 83,
+      columnEnd: 92,
+
+      category: 2,
+
+      length: 9.7,
+
+      gradient: 5.0
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DES TERRASSES
+    // Km 112,8 — 3,4 km à 6,6 % — catégorie 3
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte des Terrasses',
+
+      distanceStart: 109.4,
+      distanceEnd: 112.8,
+
+      columnStart: 109,
+      columnEnd: 113,
+
+      category: 3,
+
+      length: 3.4,
+
+      gradient: 6.6
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE SAINT-LÉGER-LES-MÉLÈZES
+    // Km 166,2 — 2,5 km à 6,9 % — catégorie 3
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de Saint-Léger-les-Mélèzes',
+
+      distanceStart: 163.7,
+      distanceEnd: 166.2,
+
+      columnStart: 164,
+      columnEnd: 166,
+
+      category: 3,
+
+      length: 2.5,
+
+      gradient: 6.9
+    },
+
+    // --------------------------------------------------------
+    // ARRIVÉE — ORCIÈRES-MERLETTE
+    // Km 185,2 — 7,1 km à 6,7 % — catégorie 1
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Orcières-Merlette',
+
+      distanceStart: 178.1,
+      distanceEnd: 185.2,
+
+      columnStart: 178,
+      columnEnd: 185,
+
+      category: 1,
+
+      length: 7.1,
+
+      gradient: 6.7
+    }
+  ]
+}),
+
+// ============================================================
+// ÉTAPE 19
+// Gap → Alpe d'Huez
+// Montagne — 127,9 km
+// ============================================================
+
+19: checkStage({
+  number: 19,
+
+  name: 'Gap → Alpe d’Huez',
+
+  type: 'mountain',
+
+  // Distance officielle
+  distance: 127.9,
+
+  // 1 case ≈ 1 km
+  length: 128,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Gap → Col Bayard
+    // 4,8 km à 7,2 % — catégorie 2
+    [5, M],
+
+    // Col Bayard → pied du Col du Noyer
+    [13, V],
+
+    // Col du Noyer
+    // 7,2 km à 8,5 % — catégorie 1
+    [7, M],
+
+    // Col du Noyer → pied du Col d'Ornon
+    [69, V],
+
+    // Col d'Ornon
+    // 5,4 km à 6,4 % — catégorie 2
+    [5, M],
+
+    // Col d'Ornon → pied de l'Alpe d'Huez
+    [15, V],
+
+    // Montée finale vers l'Alpe d'Huez
+    // 13,7 km à 8,1 % — catégorie HC
+    [14, M]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // COL BAYARD
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col Bayard',
+
+      distanceStart: 0,
+      distanceEnd: 4.8,
+
+      columnStart: 0,
+      columnEnd: 5,
+
+      category: 2,
+
+      length: 4.8,
+
+      gradient: 7.2
+    },
+
+    // --------------------------------------------------------
+    // COL DU NOYER
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col du Noyer',
+
+      distanceStart: 18.0,
+      distanceEnd: 25.2,
+
+      columnStart: 18,
+      columnEnd: 25,
+
+      category: 1,
+
+      length: 7.2,
+
+      gradient: 8.5
+    },
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — LE PÉRIER
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Le Périer',
+
+      distance: 89.4,
+
+      column: 89
+    },
+
+    // --------------------------------------------------------
+    // COL D'ORNON
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col d’Ornon',
+
+      distanceStart: 93.8,
+      distanceEnd: 99.2,
+
+      columnStart: 94,
+      columnEnd: 99,
+
+      category: 2,
+
+      length: 5.4,
+
+      gradient: 6.4
+    },
+
+    // --------------------------------------------------------
+    // ALPE D'HUEZ
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Alpe d’Huez',
+
+      distanceStart: 114.2,
+      distanceEnd: 127.9,
+
+      columnStart: 114,
+      columnEnd: 128,
+
+      category: 'HC',
+
+      length: 13.7,
+
+      gradient: 8.1
+    }
+  ]
+}),
+
+// ============================================================
+// ÉTAPE 20
+// Le Bourg d'Oisans → Alpe d'Huez
+// Montagne — 170,9 km
+// ============================================================
+
+20: checkStage({
+  number: 20,
+
+  name: "Le Bourg d'Oisans → Alpe d'Huez",
+
+  type: 'mountain',
+
+  // Distance officielle
+  distance: 170.9,
+
+  // 1 case ≈ 1 km
+  length: 171,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Le Bourg d'Oisans → pied de la Croix de Fer
+    [10, P],
+
+    // Col de la Croix de Fer
+    // 24 km à 5,2 % — catégorie HC
+    [24, M],
+
+    // Croix de Fer → pied du Télégraphe
+    [42, V],
+
+    // Col du Télégraphe
+    // 11,9 km à 7,1 % — catégorie 1
+    [12, M],
+
+    // Télégraphe → pied du Galibier
+    [5, V],
+
+    // Col du Galibier
+    // 17,7 km à 6,9 % — catégorie HC
+    [18, M],
+
+    // Galibier → pied du Col de Sarenne
+    [33, V],
+
+    // Col de Sarenne
+    // 12,8 km à 7,3 % — catégorie HC
+    [13, M],
+
+    // Sarenne → Alpe d'Huez
+    [14, V]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // SPRINT INTERMÉDIAIRE — SAINT-JULIEN-MONT-DENIS
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Saint-Julien-Mont-Denis',
+
+      distance: 66.5,
+
+      column: 67
+    },
+
+    // --------------------------------------------------------
+    // COL DE LA CROIX DE FER
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col de la Croix de Fer',
+
+      distanceStart: 9.7,
+      distanceEnd: 33.7,
+
+      columnStart: 10,
+      columnEnd: 34,
+
+      category: 'HC',
+
+      length: 24,
+
+      gradient: 5.2
+    },
+
+    // --------------------------------------------------------
+    // COL DU TÉLÉGRAPHE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col du Télégraphe',
+
+      distanceStart: 75.7,
+      distanceEnd: 87.6,
+
+      columnStart: 76,
+      columnEnd: 88,
+
+      category: 1,
+
+      length: 11.9,
+
+      gradient: 7.1
+    },
+
+    // --------------------------------------------------------
+    // COL DU GALIBIER
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col du Galibier',
+
+      distanceStart: 92.8,
+      distanceEnd: 110.5,
+
+      columnStart: 93,
+      columnEnd: 111,
+
+      category: 'HC',
+
+      length: 17.7,
+
+      gradient: 6.9
+    },
+
+    // --------------------------------------------------------
+    // COL DE SARENNE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Col de Sarenne',
+
+      distanceStart: 143.7,
+      distanceEnd: 156.5,
+
+      columnStart: 144,
+      columnEnd: 157,
+
+      category: 'HC',
+
+      length: 12.8,
+
+      gradient: 7.3
+    }
+  ]
+}),
+
+
+// ============================================================
+// ÉTAPE 21
+// Thoiry → Paris Champs-Élysées
+// Plat — 88,7 km
+// ============================================================
+
+21: checkStage({
+  number: 21,
+
+  name: 'Thoiry → Paris Champs-Élysées',
+
+  type: 'flat',
+
+  // Distance officielle
+  distance: 88.7,
+
+  // 1 case ≈ 1 km
+  length: 89,
+
+  // Largeur : 5 voies
+  width: 5,
+
+  scale: 1,
+
+  terrain: terrainFromSegments([
+    // Thoiry → première ascension de Montmartre
+    [46, P],
+
+    // Côte de la Butte Montmartre
+    [1, M],
+
+    // Premier passage → deuxième ascension
+    [15, P],
+
+    // Côte de la Butte Montmartre
+    [1, M],
+
+    // Deuxième passage → troisième ascension
+    [15, P],
+
+    // Côte de la Butte Montmartre
+    [1, M],
+
+    // Dernier passage → Champs-Élysées
+    [10, P]
+  ]),
+
+  features: [
+
+    // --------------------------------------------------------
+    // CÔTE DE LA BUTTE MONTMARTRE — 1er PASSAGE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de la Butte Montmartre',
+
+      distanceStart: 45.4,
+      distanceEnd: 46.4,
+
+      columnStart: 45,
+      columnEnd: 46,
+
+      category: 4,
+
+      length: 1,
+
+      gradient: 6.5
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE LA BUTTE MONTMARTRE — 2e PASSAGE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de la Butte Montmartre',
+
+      distanceStart: 61.4,
+      distanceEnd: 62.4,
+
+      columnStart: 61,
+      columnEnd: 62,
+
+      category: 4,
+
+      length: 1,
+
+      gradient: 6.5
+    },
+
+    // --------------------------------------------------------
+    // CÔTE DE LA BUTTE MONTMARTRE — 3e PASSAGE
+    // --------------------------------------------------------
+
+    {
+      type: 'climb',
+
+      name: 'Côte de la Butte Montmartre',
+
+      distanceStart: 77.4,
+      distanceEnd: 78.4,
+
+      columnStart: 77,
+      columnEnd: 78,
+
+      category: 4,
+
+      length: 1,
+
+      gradient: 6.5
+    },
+
+    // --------------------------------------------------------
+    // SPRINT / ARRIVÉE — PARIS CHAMPS-ÉLYSÉES
+    // --------------------------------------------------------
+
+    {
+      type: 'sprint',
+
+      name: 'Paris Champs-Élysées',
+
+      distance: 88.7,
+
+      column: 89
+    }
+  ]
+}),
   }
 };
 

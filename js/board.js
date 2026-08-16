@@ -95,7 +95,7 @@ export function generateBoard({ length = 40, width = 3, profile = 'random' } = {
  */
 export function setStartDepth(board, totalRiders) {
   const rowsNeeded = Math.ceil(totalRiders / board.width);
-  board.startDepth = Math.max(2, rowsNeeded + 1);
+  board.startDepth = Math.max(1, rowsNeeded);
   return board.startDepth;
 }
 

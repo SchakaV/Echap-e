@@ -46,7 +46,8 @@ export function bindSetupForm() {
   function syncFormatFields() {
 
     const isStage = formatSel.value === 'stage';
-    const isTimeTrial = formatSel.value === 'timetrial';
+    const isTimeTrial = formatSel.value === 'timetrial' || formatSel.value === 'team-timetrial';
+    
 
     stageCountField.style.display = isStage ? 'flex' : 'none';
     ttStageField.style.display = isStage ? 'flex' : 'none';

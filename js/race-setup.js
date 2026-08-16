@@ -50,30 +50,25 @@ export function computeJerseys() {
   App.jerseys = { yellow: yellowId, green: greenId };
 }
 
-export function isCurrentStageTT() {
+export function isCurrentStageTeamTT() {
+  /** tour de france */
+  if (App.config.raceCategory === 'tour2026') {
+    return getTourStage(App.stageIndex + 1).type === 'team-time-trial';
+  }
+  return App.config.raceFormat === 'team-timetrial';
+}
 
-  // Tour de France 2026
+export function isCurrentStageTT() {
   if (App.config.raceCategory === 'tour2026') {
     const stage = getTourStage(App.stageIndex + 1);
-
-    return (
-      stage.type === 'time-trial' ||
-      stage.type === 'team-time-trial'
-    );
+    return stage.type === 'time-trial' || stage.type === 'team-time-trial';
   }
-
-  // Fonctionnement actuel
-  if (App.config.raceFormat === 'timetrial') {
+  if (App.config.raceFormat === 'timetrial' || App.config.raceFormat === 'team-timetrial') {
     return true;
   }
-
-  if (
-    App.config.raceFormat === 'stage' &&
-    App.config.ttStageNumber > 0
-  ) {
+  if (App.config.raceFormat === 'stage' && App.config.ttStageNumber > 0) {
     return App.config.ttStageNumber === App.stageIndex + 1;
   }
-
   return false;
 }
 
@@ -88,6 +83,31 @@ export function computeTTStartOrder() {
     return shuffled;
   }
   return [...App.allRiders].sort((a, b) => compareYellow(App.gc.get(b.id), App.gc.get(a.id)));
+}
+
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+export function computeTeamTTStartOrder() {
+  const useGC = App.totalStages > 1 && App.stageIndex >= 1;
+  const teamsWithRiders = App.teams.map(team => ({ team, riders: shuffle(team.riderObjs) }));
+
+  if (!useGC) {
+    return shuffle(teamsWithRiders).map(t => t.riders);
+  }
+
+  const yellowByTeam = new Map();
+  App.gc.forEach(entry => {
+    yellowByTeam.set(entry.teamId, (yellowByTeam.get(entry.teamId) || 0) + (entry.yellowPoints || 0));
+  });
+  teamsWithRiders.sort((a, b) => (yellowByTeam.get(b.team.id) || 0) - (yellowByTeam.get(a.team.id) || 0));
+  return teamsWithRiders.map(t => t.riders);
 }
 
 export function renderTopThreeNow() {
@@ -123,6 +143,7 @@ export function autoPlaceRiders(board) {
 
 export function startStage() {
   const isTT = isCurrentStageTT();
+  const isTeamTT = isTT && isCurrentStageTeamTT();
   // Largeur fixée à 3 voies pour un contre-la-montre, quelle que soit la
   // largeur choisie pour les autres étapes.
   
@@ -168,9 +189,27 @@ export function startStage() {
 
   $('#stage-label').textContent =
     stageTitle +
-    (isTT ? ' — Contre-la-montre' : '');
+    (isTT ? ' — Contre-la-montre' : isTT ? ' — Contre-la-montre' : '');
   $('#log-content').innerHTML = '';
   $('#btn-sim-race').disabled = false;
+
+  if (isTeamTT) {                                    // ← bloc entier ajouté, avant le `if (isTT)` existant
+    board.startDepth = Math.max(1, ...App.teams.map(t => t.riderObjs.length));
+    const teamStartOrder = computeTeamTTStartOrder();
+    const state = engine.createTeamTimeTrialState(board, App.allRiders, teamStartOrder);
+    App.runtime = { state, order: [], orderIdx: 0, isTimeTrial: true, isTeamTimeTrial: true };
+    computeJerseys();
+    const orderNote = (App.totalStages > 1 && App.stageIndex >= 1)
+      ? "Ordre de départ : de la dernière à la première équipe au classement général au temps (maillot jaune)."
+      : 'Ordre de départ tiré au sort.';
+    ui.appendLog($('#log-content'), `Contre-la-montre par équipe — ${orderNote}`);
+    renderRaceBoard(state);
+    renderRosterNow();
+    renderTopThreeNow();
+    nav('screen-race');
+    startRound();
+    return;
+  }
 
   if (isTT) {
     const startOrder = computeTTStartOrder();

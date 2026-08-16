@@ -32,9 +32,12 @@ export function startRound() {
   const rt = App.runtime;
   rt.state.round++;
   if (rt.isTimeTrial) {
-    const introduced = engine.introduceNextTTRider(rt.state);
+    const introduced = rt.isTeamTimeTrial
+      ? engine.introduceNextTeamTT(rt.state)
+      : engine.introduceNextTTRider(rt.state);
     if (introduced) {
-      ui.appendLog($('#log-content'), `<b>${introduced.name}</b> s'élance !`);
+      const label = rt.isTeamTimeTrial ? teamOf(introduced[0]).name : introduced.name;
+      ui.appendLog($('#log-content'), `<b>${label}</b> s'élance !`);
       renderRosterNow();
     }
     rt.order = engine.ttRoundOrder(rt.state);
@@ -266,7 +269,8 @@ export function simulateTimeTrialToEnd(rt) {
 
   while (!engine.allTTFinished(rt.state)) {
     rt.state.round++;
-    engine.introduceNextTTRider(rt.state);
+    if (rt.isTeamTimeTrial) engine.introduceNextTeamTT(rt.state);
+    else engine.introduceNextTTRider(rt.state);
     const order = engine.ttRoundOrder(rt.state);
     order.forEach(resolveRiderAuto);
     engine.updateDraftBonuses(rt.state);

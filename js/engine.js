@@ -62,7 +62,7 @@ export function introduceNextTTRider(state) {
   const rider = state.ttStartOrder[state.ttNextStartIdx];
 
   let lane = -1;
-  for (let l = 0; l < state.board.width; l++) {
+  for (let l = 1; l < state.board.width; l++) {
     if (isFreeCell(state.occupancy, 0, l)) { lane = l; break; }
   }
   if (lane === -1) return null; // toutes les voies occupées au départ, on réessaiera la manche suivante
@@ -76,6 +76,63 @@ export function introduceNextTTRider(state) {
   rider.arrivedSeq = state.moveSeq;
   state.occupancy.set(cellKey(0, lane), rider.id);
   return rider;
+}
+
+/**
+ * Crée l'état de course contre la montre par équipe.
+ * Les coureurs s'élancent à la file indienne équipe par équipe, manche par manche
+ */
+
+export function createTeamTimeTrialState(board, riders, teamStartOrder) {
+  riders.forEach(r => {
+    r.column = null;
+    r.lane = null;
+    r.draftBonus = 0;
+    r.finished = false;
+    r.finishRound = null;
+    r.finishRank = null;
+    r.arrivedRound = 0;
+    r.arrivedSeq = 0;
+    r.teammateDraftStreak = 0;
+    r.startRound = null;
+  });
+
+  return {
+    board,
+    riders,
+    round: 0,
+    moveSeq: 0,
+    finishColumn: board.length,
+    log: [],
+    occupancy: new Map(),
+    finishedCount: 0,
+    isTimeTrial: true,
+    ttStartOrder: teamStartOrder, // tableau d'équipes (chaque équipe = tableau de coureurs, ordre = position dans la file)
+    ttNextStartIdx: 0,
+  };
+}
+
+export function introduceNextTeamTT(state) {
+  if (state.ttNextStartIdx >= state.ttStartOrder.length) return null;
+  const team = state.ttStartOrder[state.ttNextStartIdx];
+  const lane = 1;
+
+  for (let i = 0; i < team.length; i++) {
+    if (!isFreeCell(state.occupancy, -(i + 1), lane)) return null;
+  }
+
+  state.ttNextStartIdx++;
+  team.forEach((rider, i) => {
+    const column = -(i + 1);
+    rider.column = column;
+    rider.lane = lane;
+    rider.startRound = state.round;
+    state.moveSeq++;
+    rider.arrivedRound = state.round;
+    rider.arrivedSeq = state.moveSeq;
+    state.occupancy.set(cellKey(column, lane), rider.id);
+  });
+  return team;
 }
 
 /** Nombre de manches personnellement courues par un coureur arrivé (son

@@ -28,8 +28,8 @@ export const SPECIALIZATIONS = {
     key: 'puncheur',
     label: 'Puncheur',
     short: 'PUN',
-    desc: '+2 en vallon.',
-    terrainBonus: { plaine: 0, vallon: 2, montagne: 0 },
+    desc: '+1 en vallon.',
+    terrainBonus: { plaine: 0, vallon: 1, montagne: 0 },
   },
   rouleur: {
     key: 'rouleur',
