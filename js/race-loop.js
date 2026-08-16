@@ -32,9 +32,25 @@ export function startRound() {
   const rt = App.runtime;
   rt.state.round++;
   if (rt.isTimeTrial) {
-    const introduced = rt.isTeamTimeTrial
-      ? engine.introduceNextTeamTT(rt.state)
-      : engine.introduceNextTTRider(rt.state);
+    // En CLM par équipe, les équipes s'élancent avec 2 manches d'écart :
+    // on n'introduit la suivante que toutes les `ttStartInterval` manches.
+    // (Le CLM individuel garde un départ par manche.)
+    const interval = rt.isTeamTimeTrial ? (rt.state.ttStartInterval || 1) : 1;
+    // On tente d'introduire une nouvelle équipe tous les `interval` manches.
+    // Si une tentative échoue (voie de départ encore occupée), on réessaie
+    // à la manche suivante plutôt que d'attendre un cycle complet.
+    // round vaut 1 au premier startRound : on déclenche un départ quand
+    // (round-1) est un multiple de l'intervalle (manches 1, 3, 5... pour
+    // interval=2), soit bien 2 manches d'écart entre départs.
+    const due = (rt.state.round - 1) % interval === 0;
+    const pending = rt.state.ttPendingStart === true;
+    const introduce = due || pending;
+    const introduced = introduce
+      ? (rt.isTeamTimeTrial
+          ? engine.introduceNextTeamTT(rt.state)
+          : engine.introduceNextTTRider(rt.state))
+      : null;
+    rt.state.ttPendingStart = introduce && !introduced;
     if (introduced) {
       const label = rt.isTeamTimeTrial ? teamOf(introduced[0]).name : introduced.name;
       ui.appendLog($('#log-content'), `<b>${label}</b> s'élance !`);
@@ -269,8 +285,20 @@ export function simulateTimeTrialToEnd(rt) {
 
   while (!engine.allTTFinished(rt.state)) {
     rt.state.round++;
-    if (rt.isTeamTimeTrial) engine.introduceNextTeamTT(rt.state);
-    else engine.introduceNextTTRider(rt.state);
+    // En CLM par équipe, on n'introduit la prochaine équipe que toutes les
+    // `ttStartInterval` manches (2 manches d'écart), comme dans startRound.
+    const interval = rt.isTeamTimeTrial ? (rt.state.ttStartInterval || 1) : 1;
+    // round vaut 1 au premier startRound : on déclenche un départ quand
+    // (round-1) est un multiple de l'intervalle (manches 1, 3, 5... pour
+    // interval=2), soit bien 2 manches d'écart entre départs.
+    const due = (rt.state.round - 1) % interval === 0;
+    const pending = rt.state.ttPendingStart === true;
+    if (due || pending) {
+      const introduced = rt.isTeamTimeTrial
+        ? engine.introduceNextTeamTT(rt.state)
+        : engine.introduceNextTTRider(rt.state);
+      rt.state.ttPendingStart = !introduced;
+    }
     const order = engine.ttRoundOrder(rt.state);
     order.forEach(resolveRiderAuto);
     engine.updateDraftBonuses(rt.state);

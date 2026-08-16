@@ -185,6 +185,7 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 .dot.plaine{background:var(--plaine);}
 .dot.vallon{background:var(--vallon);}
 .dot.montagne{background:var(--montagne);}
+.inline-legend{display:inline-flex; flex-wrap:wrap; gap:6px;}
 .race-controls{display:flex; gap:10px;}
 
 /* ---------- Course : mise en page principale ---------- */
@@ -210,6 +211,11 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 .top3-name{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .top3-pts{color:var(--chalk-dim); font-size:11px; white-space:nowrap;}
 .top3-empty{font-size:12px; color:var(--chalk-dim); margin:0;}
+.gc-dropdown{margin-top:6px;}
+.gc-dropdown > summary{cursor:pointer; font-size:11px; color:var(--chalk-dim); font-weight:600; list-style:none; padding:4px 0; border-top:1px dashed var(--line);}
+.gc-dropdown > summary::-webkit-details-marker{display:none;}
+.gc-dropdown[open] > summary{margin-bottom:4px;}
+.gc-dropdown .top3-row{padding:3px 0; font-size:11px;}
 
 /* ---------- Rappel des règles ---------- */
 .rules-panel{
@@ -342,7 +348,7 @@ input[type=range]{accent-color: var(--maillot-jaune);}
   border:1px solid var(--line);
   border-radius: var(--radius);
   padding:14px 18px;
-  max-height:220px;
+  max-height:440px;
   overflow-y:auto;
 }
 #log-panel h4, #online-log-panel h4{margin:0 0 8px; font-family:var(--font-display); letter-spacing:.03em; color:var(--maillot-jaune); font-size:16px;}

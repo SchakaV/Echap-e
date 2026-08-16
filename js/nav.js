@@ -29,16 +29,23 @@ export function bindMusicToggle() {
   });
 }
 
+/** Remet l'application à zéro et revient à l'écran d'accueil. Utilisé
+ *  par le bouton de résultats et par celui de l'écran de course. */
+export function goHome() {
+  App.stageIndex = 0;
+  App.allRiders = null;
+  App.gc.clear();
+  App.jerseys = null;
+  App.runtime = null;
+  nav('screen-home');
+}
+
 export function bindNav() {
   $all('[data-nav]').forEach(btn => {
     btn.addEventListener('click', () => nav(btn.dataset.nav));
   });
   $('#btn-go-setup').addEventListener('click', () => nav('screen-race-setup'));
-  $('#btn-back-home').addEventListener('click', () => {
-    App.stageIndex = 0;
-    App.allRiders = null;
-    App.gc.clear();
-    App.jerseys = null;
-    nav('screen-home');
-  });
+  $('#btn-back-home').addEventListener('click', goHome);
+  const raceHome = $('#btn-race-home');
+  if (raceHome) raceHome.addEventListener('click', goHome);
 }

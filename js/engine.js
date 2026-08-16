@@ -80,7 +80,8 @@ export function introduceNextTTRider(state) {
 
 /**
  * Crée l'état de course contre la montre par équipe.
- * Les coureurs s'élancent à la file indienne équipe par équipe, manche par manche
+ * Les coureurs s'élancent à la file indienne équipe par équipe, avec 2 manches
+ * d'écart entre chaque équipe (ttStartInterval).
  */
 
 export function createTeamTimeTrialState(board, riders, teamStartOrder) {
@@ -109,6 +110,10 @@ export function createTeamTimeTrialState(board, riders, teamStartOrder) {
     isTimeTrial: true,
     ttStartOrder: teamStartOrder, // tableau d'équipes (chaque équipe = tableau de coureurs, ordre = position dans la file)
     ttNextStartIdx: 0,
+    // En CLM par équipe, les équipes s'élancent avec 2 manches d'écart
+    // (et non une seule) : on n'introduit une nouvelle équipe que toutes
+    // les `ttStartInterval` manches.
+    ttStartInterval: 2,
   };
 }
 
@@ -239,7 +244,11 @@ export function computeRoll(state, rider) {
 
   let breakawayBonus = 0;
   let inBreakaway = false;
-  if (rider.spec.breakawayBonus) {
+  // En contre-la-montre, le baroudeur ne profite plus de son bonus
+  // d'échappée : les coureurs s'élancent seul contre la montre, il n'y a
+  // pas de notion d'échappée. Il ne conserve que son bonus de terrain
+  // (+1 en plaine), comme les autres spécialités.
+  if (rider.spec.breakawayBonus && !state.isTimeTrial) {
     const gap = nearestRivalGapBehind(state, rider);
     const isLeaderish = rider.column === Math.max(...state.riders.filter(r => !r.finished).map(r => r.column));
     if (gap >= 4 && isLeaderish) {

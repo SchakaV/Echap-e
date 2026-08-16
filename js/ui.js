@@ -530,34 +530,50 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
 
 /* ============================= TOP 3 GÉNÉRAL (écran de course) ============================= */
 
-export function renderTopThree(container, gcEntries) {
+/** Ligne de classement général (format commun au top 3 visible et à la
+ *  liste déroulante complète). */
+function gcRow(r, i, { jersey, value, cls }) {
+  return `
+    <div class="top3-row${cls ? ' ' + cls : ''}">
+      <span class="top3-rank">${i + 1}</span>
+      <span class="team-swatch" style="background:${r.teamColor}"></span>
+      <span class="top3-name">${i === 0 && jersey ? jersey + ' ' : ''}${r.name}</span>
+      <span class="top3-pts">${value}</span>
+    </div>`;
+}
+
+/** Construit un encart de classement général : le top 3 est visible
+ *  directement, le reste du classement se déroule via un <details>. */
+function renderTopThreeWithDropdown(container, gcEntries, { sortFn, valueFn, jersey, rowCls }) {
   if (!gcEntries || !gcEntries.length) {
     container.innerHTML = '<p class="top3-empty">Disponible à partir de la 2ᵉ étape.</p>';
     return;
   }
-  const sorted = [...gcEntries].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 3);
-  container.innerHTML = sorted.map((r, i) => `
-    <div class="top3-row">
-      <span class="top3-rank">${i + 1}</span>
-      <span class="team-swatch" style="background:${r.teamColor}"></span>
-      <span class="top3-name">${i === 0 ? '🟢 ' : ''}${r.name}</span>
-      <span class="top3-pts">${r.totalPoints} pts</span>
-    </div>
-  `).join('');
+  const sorted = [...gcEntries].sort(sortFn);
+  const top = sorted.slice(0, 3);
+  const rest = sorted.slice(3);
+  let html = top.map((r, i) => gcRow(r, i, { jersey, value: valueFn(r, i), cls: rowCls })).join('');
+  if (rest.length) {
+    html += `<details class="gc-dropdown"><summary>Voir tout le classement (${sorted.length})</summary>`;
+    html += rest.map((r, i) => gcRow(r, i + 3, { jersey, value: valueFn(r, i + 3), cls: rowCls })).join('');
+    html += `</details>`;
+  }
+  container.innerHTML = html;
+}
+
+export function renderTopThree(container, gcEntries) {
+  renderTopThreeWithDropdown(container, gcEntries, {
+    sortFn: (a, b) => b.totalPoints - a.totalPoints,
+    valueFn: r => `${r.totalPoints} pts`,
+    jersey: '🟢',
+  });
 }
 
 export function renderTopThreeYellow(container, gcEntries) {
-  if (!gcEntries || !gcEntries.length) {
-    container.innerHTML = '<p class="top3-empty">Disponible à partir de la 2ᵉ étape.</p>';
-    return;
-  }
-  const sorted = [...gcEntries].sort(compareYellow).slice(0, 3);
-  container.innerHTML = sorted.map((r, i) => `
-    <div class="top3-row yellow">
-      <span class="top3-rank">${i + 1}</span>
-      <span class="team-swatch" style="background:${r.teamColor}"></span>
-      <span class="top3-name">${i === 0 ? '🟡 ' : ''}${r.name}</span>
-      <span class="top3-pts">${i === 0 ? '0' : '+' + formatYellowTime(r.yellowPoints || 0)}</span>
-    </div>
-  `).join('');
+  renderTopThreeWithDropdown(container, gcEntries, {
+    sortFn: compareYellow,
+    valueFn: (r, i) => i === 0 ? '0' : '+' + formatYellowTime(r.yellowPoints || 0),
+    jersey: '🟡',
+    rowCls: 'yellow',
+  });
 }

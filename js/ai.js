@@ -124,7 +124,9 @@ function scoreCell(state, rider, cell) {
   //     est déjà privilégiée par le score de colonne ; on ajoute juste un
   //     bonus pour « garder le cap » plutôt que de zigzaguer pour chercher
   //     une aspiration qui n'existe pas (personne devant). ---
-  if (spec.breakawayBonus && !aheadId) {
+  // En contre-la-montre, le baroudeur n'a plus de bonus d'échappée — on ne
+  // le pousse donc pas à maintenir un écart de tête artificiellement.
+  if (spec.breakawayBonus && !aheadId && !state.isTimeTrial) {
     score += 25;
   }
 
