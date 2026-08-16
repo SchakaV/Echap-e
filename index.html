@@ -231,15 +231,11 @@
     <header class="race-header">
       <div class="race-info">
         <span id="stage-label">Étape 1/1</span>
-        <span id="terrain-legend" class="legend">
-          <span class="dot plaine"></span> Plaine
-          <span class="dot vallon"></span> Vallon
-          <span class="dot montagne"></span> Montagne
-        </span>
       </div>
       <div class="race-controls">
         <button class="btn btn-ghost" id="btn-toggle-rules">Rappel des règles</button>
         <button class="btn btn-ghost" id="btn-sim-race" title="Simuler le reste de la course">Simuler jusqu'à l'arrivée</button>
+        <button class="btn btn-ghost" id="btn-race-home" title="Quitter la course et revenir à l'accueil">← Accueil</button>
       </div>
     </header>
 
@@ -250,7 +246,7 @@
           <ul>
             <li><b>Déplacement</b> : chaque point obtenu au dé est un pas — tout droit (une case complète) ou en diagonale (une demi-case seulement, à cause du pavage décalé). Zigzaguer pour doubler coûte donc un peu de progression. Seules les cases libres comptent : impossible de passer à travers un coureur.</li>
             <li><b>Ordre de jeu</b> : à chaque manche, le coureur le plus avancé joue en premier.</li>
-            <li><b>Terrain</b> : plaine (vert), vallon (jaune), montagne (rouge) — chaque spécialité a ses bonus selon le terrain sous le coureur au moment du jet.</li>
+            <li><b>Terrain</b> : <span class="legend inline-legend"><span class="dot plaine"></span> Plaine <span class="dot vallon"></span> Vallon <span class="dot montagne"></span> Montagne</span> — chaque spécialité a ses bonus selon le terrain sous le coureur au moment du jet.</li>
             <li><b>Aspiration</b> : à la fin de chaque manche complète (une fois que tous les coureurs ont joué), tout coureur placé juste derrière un autre (même voie) gagne +1 au prochain jet.</li>
             <li><b>Protection contre le vent</b> : si ce coureur juste devant est un coéquipier et que ça dure 2 manches d'affilée, +1 supplémentaire s'ajoute (cumulable avec l'aspiration normale).</li>
             <li><b>Échappée</b> : un baroudeur seul en tête, sans rival à moins de 4 cases derrière lui, gagne un bonus.</li>
@@ -300,13 +296,13 @@
       </div>
 
       <aside class="card roster-card">
-        <div id="top3-panel-wrap">
-          <h3>Top 3 général (🟢 points)</h3>
-          <div id="top3-panel"></div>
-        </div>
-        <div id="top3-yellow-panel-wrap" style="margin-top:16px;">
-          <h3>Top 3 général (🟡 temps)</h3>
+        <div id="top3-yellow-panel-wrap">
+          <h3>Classement général (🟡 temps)</h3>
           <div id="top3-yellow-panel"></div>
+        </div>
+        <div id="top3-panel-wrap" style="margin-top:16px;">
+          <h3>Classement général (🟢 points)</h3>
+          <div id="top3-panel"></div>
         </div>
         <h3 style="margin-top:18px;">Peloton</h3>
         <div id="roster-panel"></div>
