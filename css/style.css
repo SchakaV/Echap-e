@@ -199,6 +199,19 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 .roster-name{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .roster-spec{color:var(--maillot-jaune); font-size:10px; font-weight:700;}
 .roster-status{color:var(--chalk-dim); font-size:11px; white-space:nowrap;}
+.group-block{margin-bottom:10px;}
+.group-head{
+  font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  padding:5px 8px; margin-bottom:3px; border-radius:var(--radius);
+  background:var(--asphalt-2); color:var(--chalk); border-left:3px solid var(--chalk-dim);
+}
+.group-head-finished{border-left-color:var(--line); color:var(--chalk-dim); margin-top:6px;}
+.group-block .roster-row{padding-left:6px;}
+.group-echappee .group-head{border-left-color:#e0a800; color:#ffd84d;}
+.group-poursuivant .group-head{border-left-color:#3b82f6; color:#93c5fd;}
+.group-peloton .group-head{border-left-color:var(--maillot-jaune); color:var(--maillot-jaune);}
+.group-retardataire .group-head{border-left-color:#a855f7; color:#c4b5fd;}
+
 @media (max-width: 900px){ .race-layout{grid-template-columns:1fr;} .roster-card{position:static; max-height:none;} }
 
 #top3-panel-wrap{padding-bottom:12px; border-bottom:1px solid var(--line); margin-bottom:8px;}

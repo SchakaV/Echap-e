@@ -33,6 +33,7 @@ velo-jeu/
 │   ├── board.js          Génération procédurale du parcours (terrain, largeur)
 │   ├── rider.js          Coureurs et spécialisations
 │   ├── engine.js         Moteur de course (dés, déplacement, blocages, aspiration, échappée)
+│   ├── groups.js         Groupes de course (échappée, poursuivants, peloton, retardataires)
 │   ├── ai.js             Choix de case automatique pour les coureurs IA
 │   ├── scoring.js        Barème de points par étape
 │   ├── names.js          Prénoms tirés au sort
@@ -47,6 +48,25 @@ velo-jeu/
 ```
 
 ## Nouveautés de cette version
+- **Groupes de course** (courses normales uniquement) : les coureurs sont
+  désormais répartis en groupes — échappée, poursuivants (1, 2, …),
+  peloton et retardataires (1, 2, …). Deux groupes sont séparés dès qu'il
+  y a PLUS de 4 cases d'écart entre eux (5 cases ou plus). Le groupe le
+  plus gros forme le peloton ; le groupe de tête est l'échappée ; les
+  groupes intermédiaires sont les poursuivants (numérotés du plus proche
+  de l'échappée vers le peloton) ; ceux derrière le peloton sont les
+  retardataires (numérotés du plus proche du peloton). Ces groupes
+  s'affichent en direct dans la fenêtre « Peloton » de l'écran de course,
+  au fur et à mesure qu'ils se forment, et disparaissent quand un groupe en
+  rattrape un autre. En contre-la-montre (individuel ou par équipe), il n'y
+  a ni peloton ni groupe : l'affichage reste inchangé.
+- **Baroudeur « fait rouler le groupe » : un baroudeur en tête d'un groupe
+  de poursuivants ou de retardataires comptant au moins 2 coureurs gagne un
+  bonus de +1 (course normale uniquement, pas en contre-la-montre).
+- **IA et aspiration** : l'IA prend désormais explicitement la mesure entre
+  s'abriter derrière un coéquipier ou derrière un coureur adverse à
+  progression égale, elle privilégie toujours la roue du coéquipier (qui
+  engrange le compteur de protection du vent, contrairement à un rival).
 
 - Contre-la-montre : la largeur de route est désormais **fixée à 3 voies**,
   que ce soit en course unique ou comme étape d'une course par étapes —

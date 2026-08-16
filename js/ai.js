@@ -67,14 +67,24 @@ function scoreCell(state, rider, cell) {
 
   // --- 2) Aspiration : +1 au prochain jet si un coureur est juste devant,
   //     même voie (cf. updateDraftBonuses). ---
+  // L'IA prend ici la MESURE entre s'abriter derrière un COÉQUIPIER ou
+  // derrière un RIVAL : à progression égale, l'aspiration derrière un
+  // coéquipier est toujours préférée — elle engrange le compteur de
+  // protection du vent (bonus +1 après 2 manches consécutives), ce qu'un
+  // rival ne permet jamais. Le bonus coéquipier (+40 et tirage) l'emporte
+  // donc nettement sur l'aspiration simple derrière un rival (+60 seul).
   const aheadId = occupantId(state, column + 1, lane);
   if (aheadId) {
-    score += 60;
     const ahead = findRiderById(state, aheadId);
-    // Protection contre le vent : derrière un COÉQUIPIER, on engrange un
-    // compteur qui devient +1 supplémentaire après 2 manches consécutives.
-    // C'est donc plus précieux qu'une aspiration derrière un rival.
-    if (ahead && ahead.teamId === rider.teamId) {
+    const isTeammate = !!(ahead && ahead.teamId === rider.teamId);
+    // Aspiration « basique » (valable derrière n'importe qui).
+    score += 60;
+    if (isTeammate) {
+      // Protection contre le vent : derrière un COÉQUIPIER, on engrange un
+      // compteur qui devient +1 supplémentaire après 2 manches consécutives.
+      // C'est donc plus précieux qu'une aspiration derrière un rival : ce
+      // bonus de +40 garantit qu'à progression égale, l'IA choisit toujours
+      // la roue du coéquipier plutôt que celle d'un rival.
       score += 40;
       // Plus le coéquipier est avancé, plus il « tire » le groupe vers
       // l'avant : rester dans sa roue vaut mieux.

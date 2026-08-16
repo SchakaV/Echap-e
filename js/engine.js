@@ -1,6 +1,7 @@
 // engine.js — cœur du moteur de course
 
 import { terrainAt, isSprintZone } from './board.js';
+import { headOfPursuitOrLaggardGroup } from './groups.js';
 
 function roll1d6() {
   return Math.floor(Math.random() * 6) + 1;
@@ -261,6 +262,21 @@ export function computeRoll(state, rider) {
     }
   }
 
+  // Bonus « faire rouler le groupe » (baroudeur, course normale uniquement) :
+  // un baroudeur EN TÊTE d'un groupe de poursuivants ou de retardataires
+  // comptant au moins 2 coureurs gagne +1 pour faire avancer son groupe.
+  // Ni l'échappée (le baroudeur y garde son bonus d'échappée s'il est
+  // seul en tête) ni le peloton ne déclenchent ce bonus ; le contre-la-
+  // montre n'a pas de groupe du tout.
+  let groupLeadBonus = 0;
+  let leadingGroup = false;
+  if (rider.spec.breakawayBonus && !state.isTimeTrial) {
+    if (headOfPursuitOrLaggardGroup(state, rider)) {
+      groupLeadBonus = 1;
+      leadingGroup = true;
+    }
+  }
+
   const draftBonus = rider.draftBonus || 0;
 
   // Protection contre le vent : à partir de 2 manches d'affilée dans la
@@ -269,7 +285,7 @@ export function computeRoll(state, rider) {
   // qu'une seule manche derrière n'importe qui.
   const windBonus = (rider.teammateDraftStreak || 0) >= 2 ? 1 : 0;
 
-  const baseTotal = Math.max(1, roll + terrainBonus + breakawayBonus + ttPlaineBonus + draftBonus + windBonus);
+  const baseTotal = Math.max(1, roll + terrainBonus + breakawayBonus + ttPlaineBonus + draftBonus + windBonus + groupLeadBonus);
 
   // Sprint final : ce n'est pas un bonus permanent une fois dans la zone,
   // mais un "coup de reins" — si le jet (avec les autres bonus déjà
@@ -287,7 +303,7 @@ export function computeRoll(state, rider) {
 
   return {
     roll, rerolled, terrain, terrainBonus, sprintBonus,
-    breakawayBonus, inBreakaway, ttPlaineBonus, draftBonus, windBonus, total,
+    breakawayBonus, inBreakaway, ttPlaineBonus, draftBonus, windBonus, groupLeadBonus, leadingGroup, total,
   };
 }
 

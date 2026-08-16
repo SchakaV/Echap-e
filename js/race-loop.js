@@ -126,6 +126,7 @@ export function breakdownText(rollInfo) {
   if (rollInfo.inBreakaway) bits.push(`échappée +${rollInfo.breakawayBonus}`);
   if (rollInfo.draftBonus) bits.push(`aspiration +${rollInfo.draftBonus}`);
   if (rollInfo.windBonus) bits.push(`protection du vent +${rollInfo.windBonus}`);
+  if (rollInfo.leadingGroup) bits.push(`rouler le groupe +${rollInfo.groupLeadBonus}`);
   return `${bits.join(' · ')} = <b>${rollInfo.total}</b> case(s). Cliquez une case en surbrillance.`;
 }
 
@@ -228,6 +229,7 @@ export function logMove(rider, rollInfo, target) {
   if (rollInfo.inBreakaway) bonusBits.push(`échappée +${rollInfo.breakawayBonus}`);
   if (rollInfo.draftBonus) bonusBits.push(`aspiration +${rollInfo.draftBonus}`);
   if (rollInfo.windBonus) bonusBits.push(`protection du vent +${rollInfo.windBonus}`);
+  if (rollInfo.leadingGroup) bonusBits.push(`rouler le groupe +${rollInfo.groupLeadBonus}`);
   const bonusStr = bonusBits.length ? ` (${bonusBits.join(', ')})` : '';
   const rerollStr = rollInfo.rerolled ? ' [relance rouleur]' : '';
   const blockedStr = target.blocked ? ' — bouchon dans le peloton !' : '';

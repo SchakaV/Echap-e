@@ -396,20 +396,30 @@ function scrollBoardIfNearEdge(boardEl, cellEl, threshold, targetFraction) {
 
 /* ============================= ROSTER (noms des coureurs) ============================= */
 
-export function renderRoster(container, riders, board, jerseys = null) {
-  const sorted = [...riders].sort((a, b) => {
-    if (a.finished !== b.finished) return a.finished ? -1 : 1;
-    if (a.finished && b.finished) return (a.finishRank || 0) - (b.finishRank || 0);
-    return b.column - a.column;
-  });
-  container.innerHTML = sorted.map(r => {
+/** Construit le libellé d'un groupe de course (échappée, poursuivant n,
+ *  peloton, retardataire n) à partir de sa description { type, rank, count }. */
+function groupLabel(g) {
+  const n = g.count;
+  const word = n > 1 ? `${n} coureurs` : '1 coureur';
+  if (g.type === 'echappee') return `Échappée (${word})`;
+  if (g.type === 'peloton') return `Peloton (${word})`;
+  if (g.type === 'poursuivant') return `Poursuivant ${g.rank} (${word})`;
+  if (g.type === 'retardataire') return `Retardataire ${g.rank} (${word})`;
+  return `${n} coureur(s)`;
+}
+
+
+export function renderRoster(container, riders, board, jerseys = null, opts = {}) {
+  const { groups = null, showGroups = false } = opts;
+
+  function rosterRow(r) {
     let status;
-    if (r.finished) status = `Arrivé — ${r.finishRank}${r.finishRank === 1 ? 'er' : 'e'}`;
+    if (r.finished) status = `Arriv\u00e9 \u2014 ${r.finishRank}${r.finishRank === 1 ? 'er' : 'e'}`;
     else if (r.column === null || r.column === undefined) status = 'En attente';
     else status = `Case ${r.column} / ${board.length}`;
     let jerseyBadge = '';
-    if (jerseys && jerseys.yellow === r.id) jerseyBadge = '🟡 ';
-    else if (jerseys && jerseys.green === r.id) jerseyBadge = '🟢 ';
+    if (jerseys && jerseys.yellow === r.id) jerseyBadge = '\ud83d\udfe1 ';
+    else if (jerseys && jerseys.green === r.id) jerseyBadge = '\ud83d\udfe2 ';
     return `
       <div class="roster-row">
         <span class="team-swatch" style="background:${r.teamColor}"></span>
@@ -417,7 +427,40 @@ export function renderRoster(container, riders, board, jerseys = null) {
         <span class="roster-spec">${r.spec.short}</span>
         <span class="roster-status">${status}</span>
       </div>`;
-  }).join('');
+  }
+
+  const sorted = [...riders].sort((a, b) => {
+    if (a.finished !== b.finished) return a.finished ? -1 : 1;
+    if (a.finished && b.finished) return (a.finishRank || 0) - (b.finishRank || 0);
+    return b.column - a.column;
+  });
+  // Course normale : on regroupe les coureurs encore en course par groupe
+  // de course (échappée / poursuivants / peloton / retardataires), calculé
+  // par engine.computeGroups. Les coureurs arrivés restent affichés à part
+  // en fin de liste. En contre-la-montre, `groups` est null : on garde
+  // l'affichage simple habituel (pas de peloton ni de groupe).
+  if (showGroups && groups && groups.length) {
+    const riderById = new Map(riders.map(r => [r.id, r]));
+    const finishedRows = sorted.filter(r => r.finished).map(rosterRow).join('');
+    const groupBlocks = groups.map(g => {
+      const rows = g.riders
+        .map(id => riderById.get(id))
+        .filter(Boolean)
+        .sort((a, b) => b.column - a.column)
+        .map(rosterRow)
+        .join('');
+      return `
+        <div class="group-block group-${g.type}">
+          <div class="group-head">${groupLabel(g)}</div>
+          ${rows}
+        </div>`;
+    }).join('');
+    const finishedHead = finishedRows ? '<div class="group-head group-head-finished">Arrivés</div>' : '';
+    container.innerHTML = groupBlocks + finishedHead + finishedRows;
+    return;
+  }
+
+  container.innerHTML = sorted.map(rosterRow).join('');
 }
 
 /* ============================= RÉFÉRENCE DES BONUS ============================= */

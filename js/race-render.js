@@ -5,12 +5,25 @@
 import { $ } from './dom.js';
 import { getTourStage } from './tour2026.js';
 import * as ui from './ui.js';
+import * as engine from './engine.js';
 import { App } from './state.js';
 
 export function renderRosterNow() {
-  const board = App.runtime ? App.runtime.state.board : null;
+  const rt = App.runtime;
+  const board = rt ? rt.state.board : null;
   if (!board || !App.allRiders) return;
-  ui.renderRoster($('#roster-panel'), App.allRiders, board, App.jerseys);
+  // En contre-la-montre (individuel ou par équipe), il n'y a ni peloton ni
+  // groupe : on garde l'affichage simple habituel. Sinon (course normale),
+  // on calcule les groupes de course et on les affiche dans la fenêtre
+  // « Peloton », regroupant les coureurs par échappée / poursuivants /
+  // peloton / retardataires au fur et à mesure qu'ils se forment.
+  let groups = null;
+  let showGroups = false;
+  if (!rt.isTimeTrial) {
+    groups = engine.computeGroups(rt.state);
+    showGroups = true;
+  }
+  ui.renderRoster($('#roster-panel'), App.allRiders, board, App.jerseys, { groups, showGroups });
 }
 
 export function renderRaceBoard(viewState, opts = {}) {
