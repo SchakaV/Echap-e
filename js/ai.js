@@ -103,8 +103,12 @@ function scoreCell(state, rider, cell) {
   //     a donc intérêt à finir son déplacement sur un terrain qu'il aime. ---
   const terrain = terrainAt(board, column);
   const tb = (spec.terrainBonus && spec.terrainBonus[terrain]) || 0;
+  // En contre-la-montre, le baroudeur gagne un bonus de plaine à la place de
+  // son bonus d'échappée : l'IA le pousse donc à viser la plaine.
+  const ttBonus = (state.isTimeTrial && spec.ttPlaineBonus && terrain === 'plaine') ? spec.ttPlaineBonus : 0;
   if (tb > 0) score += tb * 15;
   if (tb < 0) score += tb * 30; // pénalité aggravée (ex. sprinteur en montagne)
+  if (ttBonus > 0) score += ttBonus * 15;
 
   // --- 6) Sprinteur : à l'approche de la ligne, la priorité absolue est de
   //     dégager une voie franche vers l'arrivée pour enchaîner le bonus de

@@ -244,11 +244,15 @@ export function computeRoll(state, rider) {
 
   let breakawayBonus = 0;
   let inBreakaway = false;
-  // En contre-la-montre, le baroudeur ne profite plus de son bonus
-  // d'échappée : les coureurs s'élancent seul contre la montre, il n'y a
-  // pas de notion d'échappée. Il ne conserve que son bonus de terrain
-  // (+1 en plaine), comme les autres spécialités.
-  if (rider.spec.breakawayBonus && !state.isTimeTrial) {
+  // En contre-la-montre, le baroudeur échange son bonus d'échappée contre
+  // un bonus de plaine : il roule seul contre la montre, la notion
+  // d'échappée n'existe pas. En course normale, c'est l'inverse : il n'a
+  // aucun bonus de terrain, uniquement le bonus d'échappée s'il est seul
+  // en tête.
+  let ttPlaineBonus = 0;
+  if (state.isTimeTrial && rider.spec.ttPlaineBonus && terrain === 'plaine') {
+    ttPlaineBonus = rider.spec.ttPlaineBonus;
+  } else if (rider.spec.breakawayBonus && !state.isTimeTrial) {
     const gap = nearestRivalGapBehind(state, rider);
     const isLeaderish = rider.column === Math.max(...state.riders.filter(r => !r.finished).map(r => r.column));
     if (gap >= 4 && isLeaderish) {
@@ -265,7 +269,7 @@ export function computeRoll(state, rider) {
   // qu'une seule manche derrière n'importe qui.
   const windBonus = (rider.teammateDraftStreak || 0) >= 2 ? 1 : 0;
 
-  const baseTotal = Math.max(1, roll + terrainBonus + breakawayBonus + draftBonus + windBonus);
+  const baseTotal = Math.max(1, roll + terrainBonus + breakawayBonus + ttPlaineBonus + draftBonus + windBonus);
 
   // Sprint final : ce n'est pas un bonus permanent une fois dans la zone,
   // mais un "coup de reins" — si le jet (avec les autres bonus déjà
@@ -283,7 +287,7 @@ export function computeRoll(state, rider) {
 
   return {
     roll, rerolled, terrain, terrainBonus, sprintBonus,
-    breakawayBonus, inBreakaway, draftBonus, windBonus, total,
+    breakawayBonus, inBreakaway, ttPlaineBonus, draftBonus, windBonus, total,
   };
 }
 
