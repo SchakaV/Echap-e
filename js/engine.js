@@ -1,7 +1,10 @@
 // engine.js — cœur du moteur de course
 
 import { terrainAt, isSprintZone } from './board.js';
-import { headOfPursuitOrLaggardGroup } from './groups.js';
+import { headOfPursuitOrLaggardGroup, computeGroups, GROUP_SPLIT_GAP } from './groups.js';
+// Ré-export pour que les modules consommateurs (race-render, ui, etc.) puissent
+// appeler engine.computeGroups sans connaître le module groups.js sous-jacent.
+export { computeGroups, GROUP_SPLIT_GAP };
 
 function roll1d6() {
   return Math.floor(Math.random() * 6) + 1;
