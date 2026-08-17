@@ -189,14 +189,19 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 .race-controls{display:flex; gap:10px;}
 
 /* ---------- Course : mise en page principale ---------- */
-.race-layout{display:grid; grid-template-columns:240px 1fr 240px; gap:18px; align-items:start;}
+.race-layout{display:grid; grid-template-columns:1fr 240px; gap:18px; align-items:start;}
 .peloton-card{min-width:0;}
 .standings-card{min-width:0;}
 .peloton-card h3, .standings-card h3{margin-top:0;}
-@media (max-width: 1100px){ .race-layout{grid-template-columns:200px 1fr 200px;} }
+@media (max-width: 1100px){ .race-layout{grid-template-columns:1fr 200px;} }
 
 .race-main{min-width:0;}
 .roster-card{position:sticky; top:16px; max-height:70vh; overflow-y:auto;}
+
+/* Journal de course + Peloton & groupes, côte à côte sous le plateau. */
+.log-row{display:grid; grid-template-columns:1fr 300px; gap:18px; align-items:start;}
+.log-row .peloton-card{position:static; max-height:440px;}
+@media (max-width: 900px){ .log-row{grid-template-columns:1fr;} }
 .roster-row{
   display:grid; grid-template-columns:12px 1fr auto auto; align-items:center; gap:8px;
   padding:7px 0; border-bottom:1px dashed var(--line); font-size:12px;

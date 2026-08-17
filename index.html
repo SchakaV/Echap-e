@@ -250,7 +250,7 @@
             <li><b>Aspiration</b> : à la fin de chaque manche complète (une fois que tous les coureurs ont joué), tout coureur placé juste derrière un autre (même voie) gagne +1 au prochain jet.</li>
             <li><b>Protection contre le vent</b> : si ce coureur juste devant est un coéquipier et que ça dure 2 manches d'affilée, +1 supplémentaire s'ajoute (cumulable avec l'aspiration normale).</li>
             <li><b>Échappée</b> : un baroudeur seul en tête, sans rival à moins de 4 cases derrière lui, gagne un bonus.</li>
-            <li><b>Groupes de course</b> (course normale) : les coureurs sont répartis en groupes — échappée, poursuivants, peloton (le plus gros groupe) et retardataires — séparés dès qu’il y a plus de 3 cases d’écart. Un baroudeur en tête d’un groupe de poursuivants ou de retardataires (au moins 2 coureurs) gagne +1 pour faire rouler le groupe. En contre-la-montre, ni peloton ni groupe.</li>
+            <li><b>Groupes de course</b> (course normale) : les coureurs sont répartis en groupes — échappée, poursuivants, peloton (le plus gros groupe) et retardataires — séparés dès qu’il y a plus de 3 cases d’écart. Un baroudeur en tête d’un groupe de poursuivants ou de retardataires (au moins 2 coureurs) gagne +1 pour faire rouler le groupe — acquis en fin de manche, utilisable à la manche suivante (même principe que l’aspiration). En contre-la-montre, ni peloton ni groupe.</li>
             <li><b>Sprint final</b> : les 4 dernières cases avant la ligne donnent un bonus au sprinteur.</li>
             <li><b>Bouchon</b> : si aucun chemin libre n'existe sur la distance du dé, le coureur s'arrête à la dernière case atteignable.</li>
           </ul>
@@ -263,11 +263,6 @@
     </div>
 
     <div class="race-layout">
-      <aside class="card roster-card peloton-card">
-        <h3>Peloton &amp; groupes</h3>
-        <div id="roster-panel"></div>
-      </aside>
-
       <div class="race-main">
 
     <div id="turn-panel" class="turn-panel">
@@ -295,9 +290,16 @@
       <div id="board"></div>
     </div>
 
-    <div id="log-panel">
-      <h4>Journal de course</h4>
-      <div id="log-content"></div>
+    <div class="log-row">
+      <div id="log-panel">
+        <h4>Journal de course</h4>
+        <div id="log-content"></div>
+      </div>
+
+      <aside class="card roster-card peloton-card">
+        <h3>Peloton &amp; groupes</h3>
+        <div id="roster-panel"></div>
+      </aside>
     </div>
       </div>
 

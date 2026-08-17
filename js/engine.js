@@ -299,127 +299,17 @@ export function computeRoll(state, rider) {
     }
   }
 
+// -----------------------------------------------------------------------
+  // NOUVEAUX BONUS DU BAROUDEUR (récupérés depuis la fin de manche)
   // -----------------------------------------------------------------------
-  // NOUVEAUX BONUS DU BAROUDEUR
-  // -----------------------------------------------------------------------
 
-  let groupLeadBonus = 0;
-
-  // Informations destinées à l'affichage des bonus.
-  //
-  // Ces champs permettent à l'interface de savoir quel bonus précis
-  // est appliqué au coureur.
-  let groupBonusName = null;
-
-  // Indique si le coureur reçoit le bonus « roule en groupe ».
-  let ridesInGroupBonus = false;
-
-  // Identifiant du groupe concerné.
-  let bonusGroup = null;
-
-  if (
-    rider.spec.breakawayBonus &&
-    !state.isTimeTrial
-  ) {
-    const group = headOfPursuitOrLaggardGroup(state, rider);
-
-    const riderGroup = groups.find(
-      g => g.riders.includes(rider.id)
-    );
-
-    if (riderGroup) {
-
-      // ---------------------------------------------------------------
-      // 1. BAROUDEUR EN TÊTE DE L'ÉCHAPPÉE
-      // ---------------------------------------------------------------
-      //
-      // Ce bonus est déjà calculé dans breakawayBonus.
-      //
-      // On lui donne simplement son nouveau nom.
-      //
-      if (
-        riderGroup.type === 'echappee' &&
-        breakawayBonus > 0
-      ) {
-        groupBonusName = 'dirige l\'échappée';
-      }
-
-      // ---------------------------------------------------------------
-      // 2. BAROUDEUR DANS UN GROUPE DE RETARDATAIRES
-      // ---------------------------------------------------------------
-      //
-      // Le baroudeur n'a PAS besoin d'être en tête.
-      //
-      // Dès qu'un baroudeur appartient au groupe :
-      //
-      //   baroudeur : +1 « faire rouler le groupe »
-      //   autres    : +1 « roule en groupe »
-      //
-      else if (
-        riderGroup.type === 'retardataire' &&
-        riderGroup.count >= 2
-      ) {
-        const baroudeursDansLeGroupe = riderGroup.riders
-          .map(id => state.riders.find(r => r.id === id))
-          .filter(r =>
-            r &&
-            r.spec &&
-            r.spec.breakawayBonus
-          );
-
-        const groupeContientBaroudeur =
-          baroudeursDansLeGroupe.length > 0;
-
-        if (groupeContientBaroudeur) {
-          const isBaroudeur = !!(
-            rider.spec &&
-            rider.spec.breakawayBonus
-          );
-
-          bonusGroup = riderGroup;
-
-          if (isBaroudeur) {
-            // Le baroudeur fait rouler le groupe.
-            groupLeadBonus = 1;
-            groupBonusName = 'faire rouler le groupe';
-          } else {
-            // Tous les autres coureurs bénéficient du fait
-            // que le baroudeur fait rouler le groupe.
-            groupLeadBonus = 1;
-            groupBonusName = 'roule en groupe';
-            ridesInGroupBonus = true;
-          }
-        }
-      }
-
-      // ---------------------------------------------------------------
-      // 3. BAROUDEUR EN TÊTE D'UN GROUPE DE POURSUITE
-      // ---------------------------------------------------------------
-      //
-      // Ici, contrairement aux retardataires, il faut impérativement
-      // être en tête du groupe.
-      //
-      // Bonus : +1
-      // Nom : « roule sur l'échappée »
-      //
-      else if (
-        riderGroup.type === 'poursuivant' &&
-        riderGroup.count >= 2 &&
-        riderGroup.headIds.includes(rider.id)
-      ) {
-        groupLeadBonus = 1;
-        groupBonusName = 'roule sur l\'échappée';
-        bonusGroup = riderGroup;
-      }
-
-      // ---------------------------------------------------------------
-      // 4. PELOTON
-      // ---------------------------------------------------------------
-      //
-      // Aucun bonus de baroudeur dans le peloton.
-    }
-  }
-
+  // On se contente de lire les variables que 'updateDraftBonuses' a 
+  // sauvegardé sur le coureur à la fin de la manche précédente.
+  let groupLeadBonus = rider.groupLeadBonus || 0;
+  let groupBonusName = rider.groupBonusName || null;
+  let ridesInGroupBonus = groupBonusName === 'roule en groupe';
+  let bonusGroup = null; // Retiré du calcul en direct
+  
   const draftBonus = rider.draftBonus || 0;
 
   // Protection contre le vent :
@@ -691,8 +581,13 @@ export function applyMove(state, rider, column, lane, rollInfo) {
  *  finale de chacun, il sera consommé au prochain jet (voir computeRoll)
  *  — jamais dans la manche où il vient d'être gagné. */
 export function updateDraftBonuses(state) {
+  // On calcule les groupes de la manche qui vient de s'écouler
+  const currentGroups = state.isTimeTrial ? [] : computeGroups(state);
+
   for (const rider of state.riders) {
     if (rider.finished) continue;
+
+    // 1. Calcul de l'aspiration (inchangé)
     const aheadKey = `${rider.column + 1}-${rider.lane}`;
     const aheadRiderId = state.occupancy.get(aheadKey);
     rider.draftBonus = aheadRiderId ? 1 : 0;
@@ -704,10 +599,38 @@ export function updateDraftBonuses(state) {
     }
     rider.teammateDraftStreak = behindTeammate ? (rider.teammateDraftStreak || 0) + 1 : 0;
 
-    if (rider.spec.breakawayBonus && !state.isTimeTrial) {
-      rider.groupLeadBonus = headOfPursuitOrLaggardGroup(state, rider) ? 1 : 0;
-    } else {
-      rider.groupLeadBonus = 0;
+    // 2. NOUVEAU : Calcul des bonus de groupe pour la MANCHE SUIVANTE
+    rider.groupLeadBonus = 0;
+    rider.groupBonusName = null;
+
+    if (!state.isTimeTrial) {
+      const riderGroup = currentGroups.find(g => g.riders.includes(rider.id));
+
+      if (riderGroup) {
+        // RETARDATAIRES
+        if (riderGroup.type === 'retardataire' && riderGroup.count >= 2) {
+          const hasBaroudeur = riderGroup.riders.some(id => {
+            const r = state.riders.find(x => x.id === id);
+            return r && r.spec && r.spec.breakawayBonus;
+          });
+
+          if (hasBaroudeur) {
+            rider.groupLeadBonus = 1;
+            const isBaroudeur = !!(rider.spec && rider.spec.breakawayBonus);
+            rider.groupBonusName = isBaroudeur ? 'faire rouler le groupe' : 'roule en groupe';
+          }
+        }
+        // POURSUIVANTS (Être Baroudeur et en tête)
+        else if (
+          riderGroup.type === 'poursuivant' &&
+          riderGroup.count >= 2 &&
+          riderGroup.headIds.includes(rider.id) &&
+          rider.spec && rider.spec.breakawayBonus
+        ) {
+          rider.groupLeadBonus = 1;
+          rider.groupBonusName = 'roule sur l\'échappée';
+        }
+      }
     }
   }
 }
