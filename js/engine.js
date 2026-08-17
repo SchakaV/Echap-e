@@ -1,7 +1,7 @@
 // engine.js — cœur du moteur de course
 
 import { terrainAt, isSprintZone } from './board.js';
-import { headOfPursuitOrLaggardGroup, computeGroups, GROUP_SPLIT_GAP } from './groups.js';
+import { computeGroups, GROUP_SPLIT_GAP } from './groups.js';
 // Ré-export pour que les modules consommateurs (race-render, ui, etc.) puissent
 // appeler engine.computeGroups sans connaître le module groups.js sous-jacent.
 export { computeGroups, GROUP_SPLIT_GAP };
@@ -299,16 +299,13 @@ export function computeRoll(state, rider) {
     }
   }
 
-// -----------------------------------------------------------------------
-  // NOUVEAUX BONUS DU BAROUDEUR (récupérés depuis la fin de manche)
   // -----------------------------------------------------------------------
-
-  // On se contente de lire les variables que 'updateDraftBonuses' a 
+  // Bonus du baroudeur en groupe (récupérés depuis la fin de manche)
+  // -----------------------------------------------------------------------
+  // On se contente de lire les variables que 'updateDraftBonuses' a
   // sauvegardé sur le coureur à la fin de la manche précédente.
-  let groupLeadBonus = rider.groupLeadBonus || 0;
-  let groupBonusName = rider.groupBonusName || null;
-  let ridesInGroupBonus = groupBonusName === 'roule en groupe';
-  let bonusGroup = null; // Retiré du calcul en direct
+  const groupLeadBonus = rider.groupLeadBonus || 0;
+  const groupBonusName = rider.groupBonusName || null;
   
   const draftBonus = rider.draftBonus || 0;
 
@@ -381,10 +378,8 @@ export function computeRoll(state, rider) {
     groupLeadBonus,
     leadingGroup: groupLeadBonus > 0,
 
-    // NOUVEAUX INFORMATIONS POUR L'INTERFACE.
     groupBonusName,
-    ridesInGroupBonus,
-    bonusGroup,
+    ridesInGroupBonus: groupBonusName === 'roule en groupe',
 
     total,
   };
@@ -584,6 +579,17 @@ export function updateDraftBonuses(state) {
   // On calcule les groupes de la manche qui vient de s'écouler
   const currentGroups = state.isTimeTrial ? [] : computeGroups(state);
 
+  // Index id -> coureur, pour éviter les recherches linéaires répétées
+  // (state.riders.find) à l'intérieur de la boucle ci-dessous.
+  const riderById = new Map(state.riders.map(r => [r.id, r]));
+
+  // Index coureur -> groupe de la manche écoulée, évite de reparcourir
+  // tous les groupes pour chaque coureur.
+  const groupByRiderId = new Map();
+  for (const g of currentGroups) {
+    for (const id of g.riders) groupByRiderId.set(id, g);
+  }
+
   for (const rider of state.riders) {
     if (rider.finished) continue;
 
@@ -594,7 +600,7 @@ export function updateDraftBonuses(state) {
 
     let behindTeammate = false;
     if (aheadRiderId) {
-      const aheadRider = state.riders.find(r => r.id === aheadRiderId);
+      const aheadRider = riderById.get(aheadRiderId);
       behindTeammate = !!(aheadRider && aheadRider.teamId === rider.teamId);
     }
     rider.teammateDraftStreak = behindTeammate ? (rider.teammateDraftStreak || 0) + 1 : 0;
@@ -604,13 +610,13 @@ export function updateDraftBonuses(state) {
     rider.groupBonusName = null;
 
     if (!state.isTimeTrial) {
-      const riderGroup = currentGroups.find(g => g.riders.includes(rider.id));
+      const riderGroup = groupByRiderId.get(rider.id);
 
       if (riderGroup) {
         // RETARDATAIRES
         if (riderGroup.type === 'retardataire' && riderGroup.count >= 2) {
           const hasBaroudeur = riderGroup.riders.some(id => {
-            const r = state.riders.find(x => x.id === id);
+            const r = riderById.get(id);
             return r && r.spec && r.spec.breakawayBonus;
           });
 
@@ -633,6 +639,44 @@ export function updateDraftBonuses(state) {
       }
     }
   }
+}
+
+/**
+ * Construit la liste des libellés de bonus d'un jet de dé (rollInfo),
+ * dans un ordre stable, identique côté client et côté serveur.
+ *
+ * Renvoie un tableau de chaînes (ex. ["terrain +1", "aspiration +1"]).
+ * Chaque libellé n'apparaît que si le bonus correspondant est non nul.
+ *
+ * Source unique de vérité pour l'affichage des bonus du dé — utilisée
+ * par race-loop.js (breakdownText + logMove) et par server/game.js.
+ */
+export function rollBonusBits(rollInfo) {
+  const bits = [];
+
+  if (rollInfo.terrainBonus) {
+    bits.push(`terrain ${rollInfo.terrainBonus > 0 ? '+' : ''}${rollInfo.terrainBonus}`);
+  }
+  if (rollInfo.sprintBonus) {
+    bits.push(`sprint +${rollInfo.sprintBonus}`);
+  }
+  if (rollInfo.ttPlaineBonus) {
+    bits.push(`plaine +${rollInfo.ttPlaineBonus}`);
+  }
+  if (rollInfo.inBreakaway) {
+    bits.push(`dirige l'échappée +${rollInfo.breakawayBonus}`);
+  }
+  if (rollInfo.draftBonus) {
+    bits.push(`aspiration +${rollInfo.draftBonus}`);
+  }
+  if (rollInfo.windBonus) {
+    bits.push(`protection du vent +${rollInfo.windBonus}`);
+  }
+  if (rollInfo.groupBonusName) {
+    bits.push(`${rollInfo.groupBonusName} +${rollInfo.groupLeadBonus}`);
+  }
+
+  return bits;
 }
 
 /** Ordre de traitement du round :

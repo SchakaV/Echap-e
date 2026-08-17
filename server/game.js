@@ -258,14 +258,7 @@ export class Room {
   }
 
   logMove(rider, rollInfo, target) {
-    const bits = [];
-    if (rollInfo.terrainBonus) bits.push(`terrain ${rollInfo.terrainBonus > 0 ? '+' : ''}${rollInfo.terrainBonus}`);
-    if (rollInfo.sprintBonus) bits.push(`sprint +${rollInfo.sprintBonus}`);
-    if (rollInfo.ttPlaineBonus) bits.push(`plaine +${rollInfo.ttPlaineBonus}`);
-    if (rollInfo.inBreakaway) bits.push(`échappée +${rollInfo.breakawayBonus}`);
-    if (rollInfo.draftBonus) bits.push(`aspiration +${rollInfo.draftBonus}`);
-  if (rollInfo.windBonus) bits.push(`protection du vent +${rollInfo.windBonus}`);
-    if (rollInfo.leadingGroup) bits.push(`faire rouler le groupe +${rollInfo.groupLeadBonus}`);
+    const bits = engine.rollBonusBits(rollInfo);
     const bonusStr = bits.length ? ` (${bits.join(', ')})` : '';
     const blockedStr = target.blocked ? ' — bouchon !' : '';
     const finishStr = rider.finished ? ' 🏁' : '';

@@ -120,38 +120,7 @@ export function advanceTurn() {
 
 export function breakdownText(rollInfo) {
   const bits = [`dé ${rollInfo.roll}${rollInfo.rerolled ? ' (relance)' : ''}`];
-
-  if (rollInfo.terrainBonus) {
-    bits.push(
-      `terrain ${rollInfo.terrainBonus > 0 ? '+' : ''}${rollInfo.terrainBonus}`
-    );
-  }
-
-  if (rollInfo.sprintBonus) {
-    bits.push(`sprint +${rollInfo.sprintBonus}`);
-  }
-
-  if (rollInfo.ttPlaineBonus) {
-    bits.push(`plaine +${rollInfo.ttPlaineBonus}`);
-  }
-
-  if (rollInfo.inBreakaway) {
-    bits.push(`dirige l'échappée +${rollInfo.breakawayBonus}`);
-  }
-
-  if (rollInfo.draftBonus) {
-    bits.push(`aspiration +${rollInfo.draftBonus}`);
-  }
-
-  if (rollInfo.windBonus) {
-    bits.push(`protection du vent +${rollInfo.windBonus}`);
-  }
-
-  if (rollInfo.groupBonusName) {
-    bits.push(
-      `${rollInfo.groupBonusName} +${rollInfo.groupLeadBonus}`
-    );
-  }
+  bits.push(...engine.rollBonusBits(rollInfo));
 
   return `${bits.join(' · ')} = <b>${rollInfo.total}</b> case(s). Cliquez une case en surbrillance.`;
 }
@@ -248,43 +217,7 @@ export function resolveRiderAuto(rider) {
 }
 
 export function logMove(rider, rollInfo, target) {
-  const bonusBits = [];
-
-  if (rollInfo.terrainBonus) {
-    bonusBits.push(
-      `terrain ${rollInfo.terrainBonus > 0 ? '+' : ''}${rollInfo.terrainBonus}`
-    );
-  }
-
-  if (rollInfo.sprintBonus) {
-    bonusBits.push(`sprint +${rollInfo.sprintBonus}`);
-  }
-
-  if (rollInfo.ttPlaineBonus) {
-    bonusBits.push(`plaine +${rollInfo.ttPlaineBonus}`);
-  }
-
-  if (rollInfo.inBreakaway) {
-    bonusBits.push(
-      `dirige l'échappée +${rollInfo.breakawayBonus}`
-    );
-  }
-
-  if (rollInfo.draftBonus) {
-    bonusBits.push(`aspiration +${rollInfo.draftBonus}`);
-  }
-
-  if (rollInfo.windBonus) {
-    bonusBits.push(
-      `protection du vent +${rollInfo.windBonus}`
-    );
-  }
-
-  if (rollInfo.groupBonusName) {
-    bonusBits.push(
-      `${rollInfo.groupBonusName} +${rollInfo.groupLeadBonus}`
-    );
-  }
+  const bonusBits = engine.rollBonusBits(rollInfo);
 
   const bonusStr =
     bonusBits.length
