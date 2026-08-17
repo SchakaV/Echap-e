@@ -8,20 +8,20 @@
 //
 // Définition d'un groupe : ensemble de coureurs séparés du groupe
 // précédent (plus avancé) par PLUS de GROUP_SPLIT_GAP cases d'écart. Deux
-// coureurs à 4 cases d'écart ou moins appartiennent donc au même groupe ;
-// il faut 5 cases d'écart ou plus pour former deux groupes distincts.
+// coureurs à 3 cases d'écart ou moins appartiennent donc au même groupe ;
+// il faut 4 cases d'écart ou plus pour former deux groupes distincts.
 
 /**
  * Seuil (en cases d'écart) au-delà duquel deux ensembles de coureurs sont
- * considérés comme DEUX groupes distincts : il faut PLUS de 4 cases d'écart
+ * considérés comme DEUX groupes distincts : il faut PLUS de 3 cases d'écart
  * entre le coureur le plus avancé du groupe arrière et le moins avancé du
- * groupe de devant (donc un écart de 5 cases ou plus).
+ * groupe de devant (donc un écart de 4 cases ou plus).
  *
  * Utilisé à la fois pour la formation des groupes (computeGroups) et pour
  * le bonus de baroudeur « en tête d'un groupe », afin de garder une
  * définition unique et cohérente du passage d'un groupe à l'autre.
  */
-export const GROUP_SPLIT_GAP = 4; // écart STRICTEMENT supérieur à cette valeur sépare 2 groupes
+export const GROUP_SPLIT_GAP = 3; // écart STRICTEMENT supérieur à cette valeur sépare 2 groupes
 
 /**
  * Construit la liste des groupes de coureurs d'une course (cours normales
@@ -32,7 +32,7 @@ export const GROUP_SPLIT_GAP = 4; // écart STRICTEMENT supérieur à cette vale
  *     par colonne décroissante (du plus avancé au moins avancé).
  *  2. On les parcourt ; un nouveau groupe démarre dès que l'écart entre
  *     le coureur courant et le précédent (plus avancé) est STRICTEMENT
- *     supérieur à GROUP_SPLIT_GAP (donc ≥ 5 cases d'écart).
+ *     supérieur à GROUP_SPLIT_GAP (donc ≥ 4 cases d'écart).
  *  3. On étiquette ensuite chaque groupe selon sa position :
  *     - le groupe contenant le PLUS de coureurs (et, en cas d'égalité,
  *       le plus avancé) est le PELÔTON ;

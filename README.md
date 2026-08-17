@@ -51,7 +51,7 @@ velo-jeu/
 - **Groupes de course** (courses normales uniquement) : les coureurs sont
   désormais répartis en groupes — échappée, poursuivants (1, 2, …),
   peloton et retardataires (1, 2, …). Deux groupes sont séparés dès qu'il
-  y a PLUS de 4 cases d'écart entre eux (5 cases ou plus). Le groupe le
+  y a PLUS de 3 cases d'écart entre eux (4 cases ou plus). Le groupe le
   plus gros forme le peloton ; le groupe de tête est l'échappée ; les
   groupes intermédiaires sont les poursuivants (numérotés du plus proche
   de l'échappée vers le peloton) ; ceux derrière le peloton sont les
