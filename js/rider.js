@@ -20,7 +20,7 @@ export const SPECIALIZATIONS = {
     key: 'baroudeur',
     label: 'Baroudeur',
     short: 'BAR',
-    desc: '+2 s\'il est seul en tête (échappée). En contre-la-montre, +1 en plaine à la place.',
+    desc: '+2 s\'il est seul en tête (échappée). +1 pour faire rouler le groupe s\'il est en tête d\'un groupe de poursuivants ou de retardataires d\'au moins 2 coureurs (acquis en fin de manche, utilisable la manche suivante — comme l\'aspiration). En contre-la-montre, ces deux bonus sont remplacés par +1 en plaine.',
     terrainBonus: { plaine: 0, vallon: 0, montagne: 0 },
     breakawayBonus: 2,
     // En contre-la-montre, le baroudeur échange son bonus d'échappée contre
@@ -56,6 +56,9 @@ export function createRider({ name, teamId, teamColor, specKey, isAI }) {
     column: 0,
     lane: 0,
     draftBonus: 0,
+    // bonus baroudeur « faire rouler le groupe » — acquis en fin de manche,
+    // consommé à la manche suivante (même principe que draftBonus ci-dessus).
+    groupLeadBonus: 0,
     finished: false,
     finishRound: null,
     finishRank: null,

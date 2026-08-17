@@ -31,6 +31,7 @@ export function createTimeTrialState(board, riders, startOrder) {
     r.column = null;
     r.lane = null;
     r.draftBonus = 0;
+    r.groupLeadBonus = 0;
     r.finished = false;
     r.finishRound = null;
     r.finishRank = null;
@@ -93,6 +94,7 @@ export function createTeamTimeTrialState(board, riders, teamStartOrder) {
     r.column = null;
     r.lane = null;
     r.draftBonus = 0;
+    r.groupLeadBonus = 0;
     r.finished = false;
     r.finishRound = null;
     r.finishRank = null;
@@ -161,7 +163,15 @@ export function allTTFinished(state) {
  *  l'eau puisque les coureurs ne partent pas tous à la même manche. À
  *  n'appeler qu'une fois `allTTFinished` vrai. */
 export function rankTimeTrialResults(state) {
-  const sorted = [...state.riders].sort((a, b) => personalRounds(a) - personalRounds(b));
+  // Classement au temps personnel (nombre de manches réellement courues) —
+  // pas à l'ordre de franchissement de la ligne, puisque les départs sont
+  // décalés. En cas d'égalité de manches (fréquente, la granularité étant
+  // entière), on départage par la marge restante au moment de franchir la
+  // ligne (_rawTarget, comme pour l'écart du maillot jaune) : plus la marge
+  // est grande, plus l'arrivée est franche — pas par l'ordre d'arrivée brut.
+  const sorted = [...state.riders].sort((a, b) =>
+    personalRounds(a) - personalRounds(b) || (b._rawTarget || 0) - (a._rawTarget || 0)
+  );
   sorted.forEach((r, i) => { r.finishRank = i + 1; });
 }
 
@@ -186,6 +196,7 @@ export function ttRoundOrder(state) {
 export function createRaceState(board, riders) {
   riders.forEach(r => {
     r.draftBonus = 0;
+    r.groupLeadBonus = 0;
     r.finished = false;
     r.finishRound = null;
     r.finishRank = null;
@@ -238,6 +249,7 @@ function nearestRivalGapBehind(state, rider) {
 export function computeRoll(state, rider) {
   let roll = roll1d6();
   let rerolled = false;
+
   if (rider.spec.rerollOnOne && roll === 1) {
     roll = roll1d6();
     rerolled = true;
@@ -248,65 +260,243 @@ export function computeRoll(state, rider) {
 
   let breakawayBonus = 0;
   let inBreakaway = false;
-  // En contre-la-montre, le baroudeur échange son bonus d'échappée contre
-  // un bonus de plaine : il roule seul contre la montre, la notion
-  // d'échappée n'existe pas. En course normale, c'est l'inverse : il n'a
-  // aucun bonus de terrain, uniquement le bonus d'échappée s'il est seul
-  // en tête.
+
+  // En contre-la-montre, le baroudeur échange son bonus d'échappée
+  // contre son bonus de plaine.
   let ttPlaineBonus = 0;
-  if (state.isTimeTrial && rider.spec.ttPlaineBonus && terrain === 'plaine') {
+
+  if (
+    state.isTimeTrial &&
+    rider.spec.ttPlaineBonus &&
+    terrain === 'plaine'
+  ) {
     ttPlaineBonus = rider.spec.ttPlaineBonus;
-  } else if (rider.spec.breakawayBonus && !state.isTimeTrial) {
+  } else if (
+    rider.spec.breakawayBonus &&
+    !state.isTimeTrial
+  ) {
     const gap = nearestRivalGapBehind(state, rider);
-    const isLeaderish = rider.column === Math.max(...state.riders.filter(r => !r.finished).map(r => r.column));
+
+    const activeRiders = state.riders.filter(r => !r.finished);
+
+    const isLeaderish =
+      activeRiders.length > 0 &&
+      rider.column === Math.max(
+        ...activeRiders.map(r => r.column)
+      );
+
+    // BAROUDEUR EN TÊTE DE L'ÉCHAPPÉE
+    //
+    // Le fonctionnement existant est conservé :
+    // il faut être seul en tête avec au moins 4 cases d'écart
+    // derrière soi.
+    //
+    // Bonus : +2
+    // Nom : « dirige l'échappée »
     if (gap >= 4 && isLeaderish) {
       breakawayBonus = rider.spec.breakawayBonus;
       inBreakaway = true;
     }
   }
 
-  // Bonus « faire rouler le groupe » (baroudeur, course normale uniquement) :
-  // un baroudeur EN TÊTE d'un groupe de poursuivants ou de retardataires
-  // comptant au moins 2 coureurs gagne +1 pour faire avancer son groupe.
-  // Ni l'échappée (le baroudeur y garde son bonus d'échappée s'il est
-  // seul en tête) ni le peloton ne déclenchent ce bonus ; le contre-la-
-  // montre n'a pas de groupe du tout.
+  // -----------------------------------------------------------------------
+  // NOUVEAUX BONUS DU BAROUDEUR
+  // -----------------------------------------------------------------------
+
   let groupLeadBonus = 0;
-  let leadingGroup = false;
-  if (rider.spec.breakawayBonus && !state.isTimeTrial) {
-    if (headOfPursuitOrLaggardGroup(state, rider)) {
-      groupLeadBonus = 1;
-      leadingGroup = true;
+
+  // Informations destinées à l'affichage des bonus.
+  //
+  // Ces champs permettent à l'interface de savoir quel bonus précis
+  // est appliqué au coureur.
+  let groupBonusName = null;
+
+  // Indique si le coureur reçoit le bonus « roule en groupe ».
+  let ridesInGroupBonus = false;
+
+  // Identifiant du groupe concerné.
+  let bonusGroup = null;
+
+  if (
+    rider.spec.breakawayBonus &&
+    !state.isTimeTrial
+  ) {
+    const group = headOfPursuitOrLaggardGroup(state, rider);
+
+    const riderGroup = groups.find(
+      g => g.riders.includes(rider.id)
+    );
+
+    if (riderGroup) {
+
+      // ---------------------------------------------------------------
+      // 1. BAROUDEUR EN TÊTE DE L'ÉCHAPPÉE
+      // ---------------------------------------------------------------
+      //
+      // Ce bonus est déjà calculé dans breakawayBonus.
+      //
+      // On lui donne simplement son nouveau nom.
+      //
+      if (
+        riderGroup.type === 'echappee' &&
+        breakawayBonus > 0
+      ) {
+        groupBonusName = 'dirige l\'échappée';
+      }
+
+      // ---------------------------------------------------------------
+      // 2. BAROUDEUR DANS UN GROUPE DE RETARDATAIRES
+      // ---------------------------------------------------------------
+      //
+      // Le baroudeur n'a PAS besoin d'être en tête.
+      //
+      // Dès qu'un baroudeur appartient au groupe :
+      //
+      //   baroudeur : +1 « faire rouler le groupe »
+      //   autres    : +1 « roule en groupe »
+      //
+      else if (
+        riderGroup.type === 'retardataire' &&
+        riderGroup.count >= 2
+      ) {
+        const baroudeursDansLeGroupe = riderGroup.riders
+          .map(id => state.riders.find(r => r.id === id))
+          .filter(r =>
+            r &&
+            r.spec &&
+            r.spec.breakawayBonus
+          );
+
+        const groupeContientBaroudeur =
+          baroudeursDansLeGroupe.length > 0;
+
+        if (groupeContientBaroudeur) {
+          const isBaroudeur = !!(
+            rider.spec &&
+            rider.spec.breakawayBonus
+          );
+
+          bonusGroup = riderGroup;
+
+          if (isBaroudeur) {
+            // Le baroudeur fait rouler le groupe.
+            groupLeadBonus = 1;
+            groupBonusName = 'faire rouler le groupe';
+          } else {
+            // Tous les autres coureurs bénéficient du fait
+            // que le baroudeur fait rouler le groupe.
+            groupLeadBonus = 1;
+            groupBonusName = 'roule en groupe';
+            ridesInGroupBonus = true;
+          }
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // 3. BAROUDEUR EN TÊTE D'UN GROUPE DE POURSUITE
+      // ---------------------------------------------------------------
+      //
+      // Ici, contrairement aux retardataires, il faut impérativement
+      // être en tête du groupe.
+      //
+      // Bonus : +1
+      // Nom : « roule sur l'échappée »
+      //
+      else if (
+        riderGroup.type === 'poursuivant' &&
+        riderGroup.count >= 2 &&
+        riderGroup.headIds.includes(rider.id)
+      ) {
+        groupLeadBonus = 1;
+        groupBonusName = 'roule sur l\'échappée';
+        bonusGroup = riderGroup;
+      }
+
+      // ---------------------------------------------------------------
+      // 4. PELOTON
+      // ---------------------------------------------------------------
+      //
+      // Aucun bonus de baroudeur dans le peloton.
     }
   }
 
   const draftBonus = rider.draftBonus || 0;
 
-  // Protection contre le vent : à partir de 2 manches d'affilée dans la
-  // roue d'un coéquipier (pas un rival), un coéquipier dévoué abrite
-  // davantage — bonus distinct de l'aspiration normale, qui lui ne demande
-  // qu'une seule manche derrière n'importe qui.
-  const windBonus = (rider.teammateDraftStreak || 0) >= 2 ? 1 : 0;
+  // Protection contre le vent :
+  // à partir de 2 manches d'affilée dans la roue d'un coéquipier,
+  // un bonus supplémentaire de +1 s'ajoute.
+  const windBonus =
+    (rider.teammateDraftStreak || 0) >= 2 ? 1 : 0;
 
-  const baseTotal = Math.max(1, roll + terrainBonus + breakawayBonus + ttPlaineBonus + draftBonus + windBonus + groupLeadBonus);
+  const baseTotal = Math.max(
+    1,
+    roll +
+    terrainBonus +
+    breakawayBonus +
+    ttPlaineBonus +
+    draftBonus +
+    windBonus +
+    groupLeadBonus
+  );
 
-  // Sprint final : ce n'est pas un bonus permanent une fois dans la zone,
-  // mais un "coup de reins" — si le jet (avec les autres bonus déjà
-  // appliqués) suffit à faire arriver le coureur dans les 4 dernières
-  // cases, un sprinteur peut alors avancer de 3 cases de plus. S'il reste
-  // bloqué avant d'atteindre la zone, le bonus ne se déclenche pas.
+  // Sprint final :
+  // si le jet permet d'atteindre la zone de sprint, le sprinteur
+  // bénéficie de son bonus spécifique.
   let sprintBonus = 0;
+
   if (rider.spec.sprintBonus) {
-    const preview = resolveTarget(state, rider, baseTotal);
-    const reachesSprintZone = preview.finishing || preview.cells.some(c => isSprintZone(state.board, c.column));
-    if (reachesSprintZone) sprintBonus = rider.spec.sprintBonus;
+    const preview = resolveTarget(
+      state,
+      rider,
+      baseTotal
+    );
+
+    const reachesSprintZone =
+      preview.finishing ||
+      preview.cells.some(
+        c => isSprintZone(state.board, c.column)
+      );
+
+    if (reachesSprintZone) {
+      sprintBonus = rider.spec.sprintBonus;
+    }
   }
 
-  const total = Math.max(1, baseTotal + sprintBonus);
+  const total = Math.max(
+    1,
+    baseTotal + sprintBonus
+  );
 
   return {
-    roll, rerolled, terrain, terrainBonus, sprintBonus,
-    breakawayBonus, inBreakaway, ttPlaineBonus, draftBonus, windBonus, groupLeadBonus, leadingGroup, total,
+    roll,
+    rerolled,
+
+    terrain,
+    terrainBonus,
+
+    sprintBonus,
+
+    // Bonus de baroudeur en échappée.
+    breakawayBonus,
+    inBreakaway,
+
+    // Bonus CLM.
+    ttPlaineBonus,
+
+    // Bonus aspiration.
+    draftBonus,
+    windBonus,
+
+    // Bonus groupe.
+    groupLeadBonus,
+    leadingGroup: groupLeadBonus > 0,
+
+    // NOUVEAUX INFORMATIONS POUR L'INTERFACE.
+    groupBonusName,
+    ridesInGroupBonus,
+    bonusGroup,
+
+    total,
   };
 }
 
@@ -494,7 +684,12 @@ export function applyMove(state, rider, column, lane, rollInfo) {
  *  Calcule aussi la protection contre le vent : si c'est un COÉQUIPIER qui
  *  est juste devant, on incrémente un compteur de manches consécutives ;
  *  au bout de 2 manches d'affilée dans la roue d'un coéquipier, un bonus
- *  supplémentaire de +1 s'ajoute (distinct de l'aspiration normale). */
+ *  supplémentaire de +1 s'ajoute (distinct de l'aspiration normale).
+ *
+ *  Calcule aussi, selon le même principe, le bonus de baroudeur « faire
+ *  rouler le groupe » : acquis ici en fin de manche selon la position
+ *  finale de chacun, il sera consommé au prochain jet (voir computeRoll)
+ *  — jamais dans la manche où il vient d'être gagné. */
 export function updateDraftBonuses(state) {
   for (const rider of state.riders) {
     if (rider.finished) continue;
@@ -508,6 +703,12 @@ export function updateDraftBonuses(state) {
       behindTeammate = !!(aheadRider && aheadRider.teamId === rider.teamId);
     }
     rider.teammateDraftStreak = behindTeammate ? (rider.teammateDraftStreak || 0) + 1 : 0;
+
+    if (rider.spec.breakawayBonus && !state.isTimeTrial) {
+      rider.groupLeadBonus = headOfPursuitOrLaggardGroup(state, rider) ? 1 : 0;
+    } else {
+      rider.groupLeadBonus = 0;
+    }
   }
 }
 
