@@ -185,11 +185,39 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
   boardEl.innerHTML = '';
   const startDepth = board.startDepth || 0;
   const cellWidth = 58;
+  const cellStep = 52; // largeur (48px) + gap (4px) entre deux cases : sert à convertir une différence d'altitude en angle de pente.
   const totalColumns = board.length + startDepth + 1;
   boardEl.style.minWidth = `${totalColumns * cellWidth}px`;
 
   const firstCol = -startDepth;
   const cellsByKey = new Map();
+
+  // Élévation : on normalise l'altitude en px pour la translation Z 3D.
+  // Les cases hors route (zone de départ) restent à l'altitude 0. La ligne
+  // d'arrivée (c === board.length, une case après la dernière case réelle)
+  // n'a pas d'altitude propre : elle hérite de celle de la dernière case du
+  // parcours, pour rester en cohérence avec elle plutôt que de retomber à
+  // plat (0 = plaine) quelle que soit l'étape.
+  const elevation = board.elevation || [];
+  const maxElev = elevation.length ? Math.max(1, Math.max(...elevation.map(Math.abs))) : 1;
+  const elevPxAt = (c) => {
+    if (c < 0) return 0;
+    const idx = Math.min(Math.max(c, 0), board.length - 1);
+    if (idx < 0) return 0;
+    // On amplifie l'amplitude pour un effet visuel marqué (jusqu'à ~46px).
+    return Math.round((elevation[idx] / maxElev) * 46);
+  };
+  // Pente (en degrés) appliquée à la case c pour qu'elle s'incline en continu
+  // vers l'altitude de la case suivante, façon route en dévers, plutôt que
+  // de créer une marche verticale d'une case à l'autre. Pivot sur le bord
+  // gauche de la case (voir CSS transform-origin), donc l'angle nécessaire
+  // pour amener le bord droit à la bonne hauteur est atan(delta / largeur).
+  const slopeDegAt = (c) => {
+    if (c < firstCol || c > finishColumn) return 0;
+    const dz = elevPxAt(c + 1) - elevPxAt(c);
+    if (!dz) return 0;
+    return (Math.atan2(dz, cellStep) * 180) / Math.PI;
+  };
 
   const markerRow = document.createElement('div');
   markerRow.className = 'board-row';
@@ -199,19 +227,13 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
     if (c === 0) m.textContent = '▶';
     else if (c === finishColumn) m.textContent = '🏁';
     else if (c > 0 && c % 5 === 0) m.textContent = c;
+    // Les numéros de case suivent la même élévation que la route à cet
+    // endroit, avec un dégagement supplémentaire pour rester bien visibles
+    // au-dessus du profil, même quand le terrain est surélevé (montagne).
+    m.style.setProperty('--elev', `${elevPxAt(c) + 22}px`);
     markerRow.appendChild(m);
   }
   boardEl.appendChild(markerRow);
-
-  // Élévation : on normalise l'altitude en px pour la translation Z 3D.
-  // Les cases hors route (zone de départ / arrivée) restent à l'altitude 0.
-  const elevation = board.elevation || [];
-  const maxElev = elevation.length ? Math.max(1, Math.max(...elevation.map(Math.abs))) : 1;
-  const elevPxAt = (c) => {
-    if (c < 0 || c >= board.length) return 0;
-    // On amplifie l'amplitude pour un effet visuel marqué (jusqu'à ~46px).
-    return Math.round((elevation[c] / maxElev) * 46);
-  };
 
   // Marqueurs de features (sprints & cols) posés sur la première voie, à la
   // colonne correspondante. Pour un col, on prend le sommet (columnEnd).
@@ -237,8 +259,10 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
       cell.className = cls;
       cell.dataset.col = c;
       cell.dataset.lane = lane;
-      // Élévation 3D de la case.
+      // Élévation 3D de la case et pente vers la case suivante (effet de
+      // route inclinée plutôt que de marches).
       cell.style.setProperty('--elev', `${elevPxAt(c)}px`);
+      cell.style.setProperty('--slope', `${slopeDegAt(c).toFixed(2)}deg`);
       row.appendChild(cell);
       cellsByKey.set(`${c}-${lane}`, cell);
 
@@ -248,10 +272,11 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
         const mk = document.createElement('div');
         mk.className = `feature-marker ${f.type}`;
         if (f.type === 'sprint') {
-          mk.textContent = '🟢 Sprint';
+          mk.innerHTML = `<span class="feature-marker-label">🟢 Sprint</span>`;
         } else {
           const cat = f.category === null ? 'HC' : (f.category ? 'Cat ' + f.category : '');
-          mk.innerHTML = `⛰️ ${f.name ? '' : ''}<span class="cat">${cat}</span>`;
+          mk.innerHTML = `<span class="feature-marker-label">⛰️ <span class="cat">${cat}</span></span>` +
+            (f.name ? `<span class="feature-marker-name">${f.name}</span>` : '');
           if (f.name) mk.title = f.name;
         }
         cell.appendChild(mk);

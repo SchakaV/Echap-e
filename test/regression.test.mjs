@@ -11,10 +11,12 @@ import { generateBoard } from '../js/board.js';
 import { computeGroups } from '../js/groups.js';
 import {
   createRaceState,
+  createTimeTrialState,
   computeRoll,
   updateDraftBonuses,
   applyMove,
   resolveTarget,
+  collectFeaturePoints,
 } from '../js/engine.js';
 
 let passed = 0;
@@ -363,6 +365,43 @@ check('Échappée + peloton + retardataires bien classés', () => {
   assert.ok(types.includes('retardataire'));
   const peloton = groups.find(g => g.type === 'peloton');
   assert.equal(peloton.count, 3);
+});
+
+console.log('\n--- collectFeaturePoints : pas de points de col en contre-la-montre ---');
+
+check('Course normale : franchir un col rapporte des points au pois', () => {
+  const board = freshBoard();
+  board.features = [
+    { type: 'climb', columnStart: 10, columnEnd: 12, category: 1, name: 'Col de test' },
+  ];
+  const riders = [
+    createRider({ name: 'A', teamId: 1, teamColor: '#f00', specKey: 'rouleur', isAI: true }),
+    createRider({ name: 'B', teamId: 2, teamColor: '#00f', specKey: 'rouleur', isAI: true }),
+  ];
+  const state = createRaceState(board, riders);
+  place(state, [
+    { rider: riders[0], column: 5, lane: 0 },
+    { rider: riders[1], column: 5, lane: 1 },
+  ]);
+  applyMove(state, riders[0], 15, 0, { total: 10 });
+  applyMove(state, riders[1], 15, 1, { total: 10 });
+  const fp = collectFeaturePoints(state);
+  assert.ok(fp.get(riders[0].id).polka > 0, 'le 1er au sommet doit toucher des points de pois');
+});
+
+check('Contre-la-montre par équipe : franchir un col ne rapporte AUCUN point (pas de maillot à pois en CLM)', () => {
+  const board = freshBoard();
+  board.features = [
+    { type: 'climb', columnStart: 10, columnEnd: 12, category: 1, name: 'Col de test' },
+  ];
+  const riders = [
+    createRider({ name: 'A', teamId: 1, teamColor: '#f00', specKey: 'rouleur', isAI: true }),
+  ];
+  const state = createTimeTrialState(board, riders, riders);
+  state.riders.forEach(r => { r.column = 5; r.lane = 0; });
+  applyMove(state, riders[0], 15, 0, { total: 10 });
+  const fp = collectFeaturePoints(state);
+  assert.equal(fp.size, 0, 'aucun point de feature ne doit être distribué en contre-la-montre');
 });
 
 console.log(`\n=== ${passed} test(s) passé(s) ===`);

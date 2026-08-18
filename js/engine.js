@@ -2,7 +2,7 @@
 
 import { terrainAt, isSprintZone } from './board.js';
 import { featurePointsForRank } from './scoring.js';
-import { headOfPursuitOrLaggardGroup, computeGroups, GROUP_SPLIT_GAP } from './groups.js';
+import { computeGroups, GROUP_SPLIT_GAP } from './groups.js';
 // Ré-export pour que les modules consommateurs (race-render, ui, etc.) puissent
 // appeler engine.computeGroups sans connaître le module groups.js sous-jacent.
 export { computeGroups, GROUP_SPLIT_GAP };
@@ -769,9 +769,15 @@ export function allFinished(state) {
  * Les points d'arrivée (pointsForRank) ne sont PAS inclus ici : ils sont
  * gérés séparément dans results-screen.js. Cette fonction ne couvre que
  * les features du parcours.
+ *
+ * En contre-la-montre (individuel ou par équipe), aucun point de feature
+ * n'est distribué : comme au vrai Tour, les cols et sprints intermédiaires
+ * traversés lors d'un chrono ne comptent ni pour le maillot à pois ni pour
+ * le maillot vert (seul le classement au temps est en jeu).
  */
 export function collectFeaturePoints(state) {
   const result = new Map();
+  if (state.isTimeTrial) return result;
   const features = state.board && state.board.features;
   if (!features || !features.length || !state.featureCrossings) return result;
   for (let i = 0; i < features.length; i++) {
