@@ -203,6 +203,26 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
   }
   boardEl.appendChild(markerRow);
 
+  // Élévation : on normalise l'altitude en px pour la translation Z 3D.
+  // Les cases hors route (zone de départ / arrivée) restent à l'altitude 0.
+  const elevation = board.elevation || [];
+  const maxElev = elevation.length ? Math.max(1, Math.max(...elevation.map(Math.abs))) : 1;
+  const elevPxAt = (c) => {
+    if (c < 0 || c >= board.length) return 0;
+    // On amplifie l'amplitude pour un effet visuel marqué (jusqu'à ~46px).
+    return Math.round((elevation[c] / maxElev) * 46);
+  };
+
+  // Marqueurs de features (sprints & cols) posés sur la première voie, à la
+  // colonne correspondante. Pour un col, on prend le sommet (columnEnd).
+  const features = board.features || [];
+  const featureMarkers = new Map(); // key "col" -> élément marqueur
+  for (const f of features) {
+    const col = f.type === 'climb' ? (f.columnEnd != null ? f.columnEnd : f.columnStart) : f.column;
+    if (col == null || col < 0 || col >= board.length) continue;
+    featureMarkers.set(col, f);
+  }
+
   for (let lane = 0; lane < board.width; lane++) {
     const row = document.createElement('div');
     row.className = 'board-row' + (lane % 2 === 1 ? ' offset' : '');
@@ -217,8 +237,25 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
       cell.className = cls;
       cell.dataset.col = c;
       cell.dataset.lane = lane;
+      // Élévation 3D de la case.
+      cell.style.setProperty('--elev', `${elevPxAt(c)}px`);
       row.appendChild(cell);
       cellsByKey.set(`${c}-${lane}`, cell);
+
+      // Marqueur de feature sur la première voie uniquement.
+      if (lane === 0 && featureMarkers.has(c)) {
+        const f = featureMarkers.get(c);
+        const mk = document.createElement('div');
+        mk.className = `feature-marker ${f.type}`;
+        if (f.type === 'sprint') {
+          mk.textContent = '🟢 Sprint';
+        } else {
+          const cat = f.category === null ? 'HC' : (f.category ? 'Cat ' + f.category : '');
+          mk.innerHTML = `⛰️ ${f.name ? '' : ''}<span class="cat">${cat}</span>`;
+          if (f.name) mk.title = f.name;
+        }
+        cell.appendChild(mk);
+      }
     }
     boardEl.appendChild(row);
   }
@@ -301,6 +338,7 @@ function updateRiderTokens(cache, riders, jerseys) {
     let jerseyBadge = '';
     if (jerseys && jerseys.yellow === rider.id) { tokenCls += ' jersey-yellow'; jerseyBadge = '🟡'; }
     else if (jerseys && jerseys.green === rider.id) { tokenCls += ' jersey-green'; jerseyBadge = '🟢'; }
+    else if (jerseys && jerseys.polka === rider.id) { tokenCls += ' jersey-polka'; jerseyBadge = '🔴'; }
     token.className = tokenCls;
     token.style.setProperty('--rider-color', rider.teamColor);
     token.title = `${rider.name} (${rider.spec.label})${jerseyBadge ? ' ' + jerseyBadge : ''}`;
@@ -420,6 +458,7 @@ export function renderRoster(container, riders, board, jerseys = null, opts = {}
     let jerseyBadge = '';
     if (jerseys && jerseys.yellow === r.id) jerseyBadge = '\ud83d\udfe1 ';
     else if (jerseys && jerseys.green === r.id) jerseyBadge = '\ud83d\udfe2 ';
+    else if (jerseys && jerseys.polka === r.id) jerseyBadge = '\ud83d\udd34 ';
     return `
       <div class="roster-row">
         <span class="team-swatch" style="background:${r.teamColor}"></span>
@@ -618,5 +657,21 @@ export function renderTopThreeYellow(container, gcEntries) {
     valueFn: (r, i) => i === 0 ? '0' : '+' + formatYellowTime(r.yellowPoints || 0),
     jersey: '🟡',
     rowCls: 'yellow',
+  });
+}
+
+/** Classement du maillot à pois (meilleur grimpeur) : trié par polkaPoints
+ *  décroissant. N'affiche rien tant qu'aucun col n'a été franchi. */
+export function renderTopThreePolka(container, gcEntries) {
+  const hasPolka = gcEntries && gcEntries.some(e => (e.polkaPoints || 0) > 0);
+  if (!hasPolka) {
+    container.innerHTML = '<p class="top3-empty">Disponible après le 1er col franchi.</p>';
+    return;
+  }
+  renderTopThreeWithDropdown(container, gcEntries, {
+    sortFn: (a, b) => (b.polkaPoints || 0) - (a.polkaPoints || 0),
+    valueFn: r => `${r.polkaPoints || 0} pts`,
+    jersey: '🔴',
+    rowCls: 'polka',
   });
 }

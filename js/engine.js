@@ -1,7 +1,8 @@
 // engine.js — cœur du moteur de course
 
 import { terrainAt, isSprintZone } from './board.js';
-import { computeGroups, GROUP_SPLIT_GAP } from './groups.js';
+import { featurePointsForRank } from './scoring.js';
+import { headOfPursuitOrLaggardGroup, computeGroups, GROUP_SPLIT_GAP } from './groups.js';
 // Ré-export pour que les modules consommateurs (race-render, ui, etc.) puissent
 // appeler engine.computeGroups sans connaître le module groups.js sous-jacent.
 export { computeGroups, GROUP_SPLIT_GAP };
@@ -50,6 +51,9 @@ export function createTimeTrialState(board, riders, startOrder) {
     log: [],
     occupancy: new Map(),
     finishedCount: 0,
+    // Ordre de franchissement des features (sprints/cols) :
+    // Map<featureIdx, Array<riderId>> dans l'ordre de passage.
+    featureCrossings: new Map(),
     isTimeTrial: true,
     ttStartOrder: startOrder,
     ttNextStartIdx: 0,
@@ -113,6 +117,9 @@ export function createTeamTimeTrialState(board, riders, teamStartOrder) {
     log: [],
     occupancy: new Map(),
     finishedCount: 0,
+    // Ordre de franchissement des features (sprints/cols) :
+    // Map<featureIdx, Array<riderId>> dans l'ordre de passage.
+    featureCrossings: new Map(),
     isTimeTrial: true,
     ttStartOrder: teamStartOrder, // tableau d'équipes (chaque équipe = tableau de coureurs, ordre = position dans la file)
     ttNextStartIdx: 0,
@@ -215,6 +222,9 @@ export function createRaceState(board, riders) {
     log: [],
     occupancy: buildOccupancy(board, riders),
     finishedCount: 0,
+    // Ordre de franchissement des features (sprints/cols) :
+    // Map<featureIdx, Array<riderId>> dans l'ordre de passage.
+    featureCrossings: new Map(),
   };
 }
 
@@ -525,6 +535,34 @@ export function resolveTarget(state, rider, total) {
 /**
  * Applique le déplacement d'un coureur vers la case choisie (column, lane).
  */
+/**
+ * Enregistre le franchissement des features par un coureur qui vient de
+ * passer de startColumn à column. Une feature est franchie quand la
+ * colonne de référence (sommet d'un col = columnEnd, ligne de sprint =
+ * column) est dépassée : startColumn < trigger <= column. Chaque coureur
+ * ne franchit chaque feature qu'une seule fois (on ignore s'il recule puis
+ * repasse — seul le 1er franchissement compte pour l'ordre de jeu).
+ */
+function recordFeatureCrossings(state, rider, startColumn, column) {
+  const features = state.board && state.board.features;
+  if (!features || !features.length) return;
+  if (!state.featureCrossings) state.featureCrossings = new Map();
+  for (let i = 0; i < features.length; i++) {
+    const f = features[i];
+    const trigger = f.type === 'climb'
+      ? (f.columnEnd != null ? f.columnEnd : f.columnStart)
+      : f.column;
+    if (trigger == null) continue;
+    // Franchi si on vient de passer le trigger (strictement) lors de ce move.
+    if (startColumn < trigger && column >= trigger) {
+      let order = state.featureCrossings.get(i);
+      if (!order) { order = []; state.featureCrossings.set(i, order); }
+      // Un coureur ne peut pas franchir deux fois la même feature.
+      if (!order.includes(rider.id)) order.push(rider.id);
+    }
+  }
+}
+
 export function applyMove(state, rider, column, lane, rollInfo) {
   const startColumn = rider.column;
   const startLane = rider.lane;
@@ -546,6 +584,14 @@ export function applyMove(state, rider, column, lane, rollInfo) {
 
   rider.column = column;
   rider.lane = lane;
+
+  // Détection du franchissement des features (sprints intermédiaires et
+  // cols). Un coureur "franchit" une feature quand il dépasse sa colonne
+  // de référence : la ligne de sprint (f.column) ou le sommet d'un col
+  // (f.columnEnd). On enregistre l'ordre de franchissement pour attribuer
+  // les points (maillot vert pour les sprints, maillot à pois pour les
+  // cols) à la fin de l'étape.
+  recordFeatureCrossings(state, rider, startColumn, column);
 
   if (column >= state.finishColumn) {
     rider.finished = true;
@@ -709,4 +755,37 @@ export function rankFinishersOfRound(state, finishersThisRound) {
 
 export function allFinished(state) {
   return state.riders.every(r => r.finished);
+}
+
+
+/**
+ * Calcule les points gagnés aux features par chaque coureur, à partir de
+ * l'ordre de franchissement enregistré pendant la course.
+ *
+ * Renvoie un Map<riderId, { green, polka }> où :
+ *   - green = points de sprints intermédiaires (maillot vert)
+ *   - polka = points de cols (maillot à pois)
+ *
+ * Les points d'arrivée (pointsForRank) ne sont PAS inclus ici : ils sont
+ * gérés séparément dans results-screen.js. Cette fonction ne couvre que
+ * les features du parcours.
+ */
+export function collectFeaturePoints(state) {
+  const result = new Map();
+  const features = state.board && state.board.features;
+  if (!features || !features.length || !state.featureCrossings) return result;
+  for (let i = 0; i < features.length; i++) {
+    const f = features[i];
+    const order = state.featureCrossings.get(i);
+    if (!order || !order.length) continue;
+    order.forEach((riderId, rankIdx) => {
+      const pts = featurePointsForRank(f, rankIdx + 1);
+      if (!pts) return;
+      let entry = result.get(riderId);
+      if (!entry) { entry = { green: 0, polka: 0 }; result.set(riderId, entry); }
+      if (f.type === 'sprint') entry.green += pts;
+      else if (f.type === 'climb') entry.polka += pts;
+    });
+  }
+  return result;
 }

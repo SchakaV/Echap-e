@@ -282,11 +282,21 @@ input[type=range]{accent-color: var(--maillot-jaune);}
   padding:14px;
   margin-bottom:18px;
 }
-#board{display:flex; flex-direction:column; gap:4px; min-width:max-content;}
-#online-board{display:flex; flex-direction:column; gap:4px; min-width:max-content;}
-.board-row{display:flex; gap:4px;}
+/* Perspective 3D : le plateau est incliné comme une table de jeu vue en
+   plongée, les voies s'enfoncent en profondeur (voie 0 au premier plan,
+   dernière voie vers l'horizon). Les coureurs apparaissent côte à côte
+   dans l'espace, et non empilés verticalement. */
+#board-wrap, #online-board-wrap{ perspective: 1400px; perspective-origin: 50% 18%; }
+#board{display:flex; flex-direction:column; gap:4px; min-width:max-content; transform: rotateX(48deg); transform-style: preserve-3d; transform-origin: 50% 0%; transition: transform .4s ease;}
+#online-board{display:flex; flex-direction:column; gap:4px; min-width:max-content; transform: rotateX(48deg); transform-style: preserve-3d; transform-origin: 50% 0%; transition: transform .4s ease;}
+/* Les tokens de coureurs restent debout (contre-rotation) pour rester lisibles. */
+.rider-token{ transform: rotateX(-48deg) translateZ(14px); }
+.board-row{display:flex; gap:4px; transform-style: preserve-3d;}
+/* Élévation : chaque colonne est surélevée en Z selon l'altitude de la case.
+   Appliqué via --elev (en px) posé sur la cellule par buildStaticGrid. */
 .cell{
   width:48px; height:30px;
+  transform: translateZ(var(--elev, 0px));
   border-radius:4px;
   position:relative;
   display:flex; align-items:center; justify-content:center;
@@ -332,6 +342,13 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 .rider-token.jersey-green{
   filter: drop-shadow(0 0 4px var(--maillot-vert)) drop-shadow(0 2px 2px rgba(0,0,0,.5));
 }
+/* Maillot à pois (meilleur grimpeur) : rouge à pois blancs. */
+.rider-token.jersey-polka{
+  filter: drop-shadow(0 0 4px var(--polka-red)) drop-shadow(0 2px 2px rgba(0,0,0,.5));
+}
+.rider-token.jersey-polka .jersey-flag{
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+}
 .jersey-flag{
   position:absolute; top:-8px; left:50%; transform:translateX(-50%);
   font-size:9px; line-height:1;
@@ -365,6 +382,38 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 }
 .col-marker{width:48px; text-align:center; font-size:9px; color:var(--chalk-dim); flex-shrink:0;}
 
+
+/* ---------- Marqueurs de features (sprints & cols) ---------- */
+/* Un marqueur se dresse verticalement au-dessus de la route, à la colonne
+   de la feature. Pour un col, la hauteur dépend de la catégorie (HC plus
+   haut que cat 4). Le token reste debout via contre-rotation. */
+.feature-marker{
+  position:absolute;
+  top:-26px; left:50%;
+  transform: translateX(-50%) rotateX(-48deg) translateZ(6px);
+  transform-origin: 50% 100%;
+  font-size:9px; font-weight:800; line-height:1.1;
+  padding:2px 5px; border-radius:5px;
+  white-space:nowrap;
+  box-shadow:0 2px 4px rgba(0,0,0,.5);
+  z-index:5; pointer-events:none;
+}
+.feature-marker.sprint{
+  background:var(--maillot-vert); color:#061;
+}
+.feature-marker.climb{
+  background:var(--polka-red); color:#fff;
+  border:2px dotted #fff;
+}
+/* Catégorie du col affichée dans le marqueur. */
+.feature-marker .cat{
+  font-size:8px; opacity:.9;
+}
+/* Profil d'élévation latéral en filigrane derrière la route (décor). */
+.elevation-profile{
+  position:absolute; left:0; top:0; width:100%; height:100%;
+  pointer-events:none; opacity:.18; z-index:0;
+}
 /* ---------- Log ---------- */
 #log-panel, #online-log-panel{
   background: var(--asphalt-2);

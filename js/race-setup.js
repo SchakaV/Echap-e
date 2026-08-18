@@ -47,7 +47,15 @@ export function computeJerseys() {
     greenId = byPoints[1][0];
   }
 
-  App.jerseys = { yellow: yellowId, green: greenId };
+  // Maillot à pois (meilleur grimpeur) : basé UNIQUEMENT sur les points
+  // de cols accumulés (polkaPoints), indépendamment du jaune et du vert
+  // — comme au vrai Tour, un coureur peut porter le maillot à pois même
+  // s'il porte déjà un autre maillot. En cas d'égalité, le 1er trié
+  // l'emporte (l'ordre de App.gc est stable).
+  const byPolka = [...entries].sort((a, b) => (b[1].polkaPoints || 0) - (a[1].polkaPoints || 0));
+  const polkaId = byPolka.length && (byPolka[0][1].polkaPoints || 0) > 0 ? byPolka[0][0] : null;
+
+  App.jerseys = { yellow: yellowId, green: greenId, polka: polkaId };
 }
 
 export function isCurrentStageTeamTT() {
@@ -113,16 +121,20 @@ export function computeTeamTTStartOrder() {
 export function renderTopThreeNow() {
   const wrap = $('#top3-panel-wrap');
   const yellowWrap = $('#top3-yellow-panel-wrap');
+  const polkaWrap = $('#top3-polka-panel-wrap');
   if (App.totalStages <= 1) {
     wrap.style.display = 'none';
     yellowWrap.style.display = 'none';
+    if (polkaWrap) polkaWrap.style.display = 'none';
     return;
   }
   wrap.style.display = 'block';
   yellowWrap.style.display = 'block';
+  if (polkaWrap) polkaWrap.style.display = 'block';
   const entries = App.stageIndex >= 1 ? Array.from(App.gc.values()) : [];
   ui.renderTopThree($('#top3-panel'), entries);
   ui.renderTopThreeYellow($('#top3-yellow-panel'), entries);
+  ui.renderTopThreePolka($('#top3-polka-panel'), entries);
 }
 
 export function autoPlaceRiders(board) {
@@ -175,7 +187,7 @@ export function startStage() {
       }));
       App.allRiders.push(...team.riderObjs);
     });
-    App.allRiders.forEach(r => App.gc.set(r.id, { name: r.name, teamColor: r.teamColor, teamId: r.teamId, totalPoints: 0, yellowPoints: 0, stageWins: 0, stageRanks: [] }));
+    App.allRiders.forEach(r => App.gc.set(r.id, { name: r.name, teamColor: r.teamColor, teamId: r.teamId, totalPoints: 0, polkaPoints: 0, yellowPoints: 0, stageWins: 0, stageRanks: [] }));
   }
 
   const stageTitle =
