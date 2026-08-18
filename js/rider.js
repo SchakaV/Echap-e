@@ -59,6 +59,7 @@ export function createRider({ name, teamId, teamColor, specKey, isAI }) {
     // bonus baroudeur « faire rouler le groupe » — acquis en fin de manche,
     // consommé à la manche suivante (même principe que draftBonus ci-dessus).
     groupLeadBonus: 0,
+    groupBonusName: null,
     finished: false,
     finishRound: null,
     finishRank: null,
