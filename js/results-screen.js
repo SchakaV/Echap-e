@@ -59,11 +59,21 @@ export function finishStage() {
   };
 
   const pointsByRiderId = new Map();
+  // Points des features (sprints intermédiaires → maillot vert, cols →
+  // maillot à pois), calculés à partir de l'ordre de franchissement
+  // enregistré pendant la course par le moteur.
+  const featurePoints = engine.collectFeaturePoints(state);
   state.riders.forEach(r => {
     const pts = pointsForRank(r.finishRank, state.board.profile);
     pointsByRiderId.set(r.id, pts);
     const gc = App.gc.get(r.id);
     gc.totalPoints += pts;
+    // Points de features : sprints → vert, cols → pois.
+    const fp = featurePoints.get(r.id);
+    if (fp) {
+      gc.totalPoints += fp.green || 0;
+      gc.polkaPoints = (gc.polkaPoints || 0) + (fp.polka || 0);
+    }
     gc.yellowPoints = (gc.yellowPoints || 0) + computeYellowGap(r);
     if (r.finishRank === 1) gc.stageWins = (gc.stageWins || 0) + 1;
     if (!gc.stageRanks) gc.stageRanks = [];

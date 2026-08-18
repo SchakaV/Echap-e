@@ -72,13 +72,69 @@ function generateTerrainSequence(length, profile) {
 }
 
 /**
+ * Calcule un profil d'altitude (en unités arbitraires, "mètres" virtuels)
+ * pour chaque case du parcours, de façon DÉTERMINISTE (aucun aléatoire : le
+ * profil doit rester stable d'un rendu à l'autre pour la perspective 3D).
+ *
+ * Principe : on parcourt le terrain case par case en cumulant un gain
+ * d'altitude. La pente (gain par case) dépend du terrain et, quand une
+ * feature "climb" couvre la case, de son gradient réel.
+ *
+ *   - plaine : gain nul (route plate)
+ *   - vallon : petites ondulations déterministes (sinusoïde basée sur la
+ *     colonne, pour éviter un profil plat sans monter indéfiniment)
+ *   - montagne : montée franche ; on utilise le gradient du climb couvrant
+ *     la case si présent, sinon un gradient par défaut (6 %).
+ *
+ * Après chaque segment de montagne, l'altitude redescent progressivement
+ * vers la plaine (on ne fait pas que monter).
+ */
+export function computeElevation(terrain, features = []) {
+  const n = terrain.length;
+  const elevation = new Array(n).fill(0);
+
+  // Index des climbs par case couverte, pour récupérer le gradient réel.
+  const climbByCol = new Map();
+  for (const f of features) {
+    if (f.type !== 'climb') continue;
+    const start = f.columnStart || 0;
+    const end = f.columnEnd || start;
+    for (let c = start; c <= end && c < n; c++) {
+      climbByCol.set(c, f);
+    }
+  }
+
+  let alt = 0;
+  for (let c = 0; c < n; c++) {
+    const t = terrain[c];
+    if (t === TERRAIN.MONTAGNE) {
+      const climb = climbByCol.get(c);
+      // gradient en % ; gain par case ≈ gradient (1 case = 1 km en étape
+      // en ligne), on l'amplifie un peu pour la lisibilité visuelle.
+      const g = climb && climb.gradient ? climb.gradient : 6;
+      alt += g * 1.2;
+    } else if (t === TERRAIN.VALLON) {
+      // Ondulation déterministe : amplitude ~15 m, période ~8 cases.
+      alt += Math.sin(c * 0.8) * 8;
+    } else {
+      // Plaine : retour progressif vers 0 (descente douce après un col).
+      alt *= 0.85;
+    }
+    elevation[c] = alt;
+  }
+
+  return elevation;
+}
+
+/**
  * Crée un plateau : { length, width, terrain: [..], profile }
  * width = nombre de voies (colonnes latérales) — une route étroite
  * force les coureurs à se gêner et bloque les dépassements.
  */
 export function generateBoard({ length = 40, width = 3, profile = 'random' } = {}) {
   const terrain = generateTerrainSequence(length, profile);
-  return { length, width, terrain, profile, startDepth: 1 };
+  const elevation = computeElevation(terrain, []);
+  return { length, width, terrain, elevation, profile, startDepth: 1 };
 }
 
 /**
@@ -130,6 +186,7 @@ export function createFixedBoard(stage) {
     length: stage.length,
     width: stage.width,
     terrain: [...stage.terrain],
+    elevation: computeElevation(stage.terrain, stage.features || []),
     profile: stage.type,
     startDepth: 1,
 

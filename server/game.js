@@ -8,6 +8,7 @@ import { generateBoard, setStartDepth } from '../js/board.js';
 import { createRider, SPECIALIZATIONS } from '../js/rider.js';
 import * as engine from '../js/engine.js';
 import { pointsForRank } from '../js/scoring.js';
+import { collectFeaturePoints } from '../js/engine.js';
 import { randomFirstName } from '../js/names.js';
 import { TEAM_COLORS } from '../js/colors.js';
 
@@ -282,9 +283,11 @@ export class Room {
 
   resultsPayload() {
     const sorted = [...this.state.riders].sort((a, b) => a.finishRank - b.finishRank);
+    const featurePoints = collectFeaturePoints(this.state);
     return sorted.map(r => ({
       rank: r.finishRank, name: r.name, teamColor: r.teamColor, spec: r.spec.label,
       points: pointsForRank(r.finishRank, this.board.profile),
+      featurePoints: featurePoints.get(r.id) || { green: 0, polka: 0 },
     }));
   }
 
