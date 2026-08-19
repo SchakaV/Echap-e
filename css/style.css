@@ -231,6 +231,7 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 }
 .top3-rank{font-family:var(--font-display); color:var(--maillot-vert); font-size:15px;}
 .top3-row.yellow .top3-rank{color:var(--maillot-jaune);}
+.top3-row.polka .top3-rank{color:var(--polka-red);}
 .top3-name{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .top3-pts{color:var(--chalk-dim); font-size:11px; white-space:nowrap;}
 .top3-empty{font-size:12px; color:var(--chalk-dim); margin:0;}
@@ -299,7 +300,7 @@ input[type=range]{accent-color: var(--maillot-jaune);}
    .cell puisque c'est une variable CSS custom property, qui se transmet aux
    enfants). Sans ce deuxième contre-rotate, un coureur sur une case en pente
    apparaîtrait penché comme le bitume au lieu de rester droit. */
-.rider-token{ transform: rotateX(-48deg) rotateY(calc(var(--slope, 0deg) * -1)) translateZ(14px); }
+.rider-token{ transform: translateY(-16px) rotateX(-48deg) rotateY(calc(var(--slope, 0deg) * -1)) translateZ(20px); }
 .board-row{display:flex; gap:4px; transform-style: preserve-3d;}
 /* Élévation : chaque colonne est surélevée en Z selon l'altitude de la case,
    ET inclinée (rotateY) vers l'altitude de la case suivante — pour un effet

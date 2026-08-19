@@ -18,6 +18,8 @@ import {
   resolveTarget,
   collectFeaturePoints,
 } from '../js/engine.js';
+import { App } from '../js/state.js';
+import { computeJerseys } from '../js/race-setup.js';
 
 let passed = 0;
 function check(name, fn) {
@@ -404,4 +406,36 @@ check('Contre-la-montre par équipe : franchir un col ne rapporte AUCUN point (p
   assert.equal(fp.size, 0, 'aucun point de feature ne doit être distribué en contre-la-montre');
 });
 
-console.log(`\n=== ${passed} test(s) passé(s) ===`);
+console.log('\n--- computeJerseys : maillot à pois non attribué sans points ---');
+
+function fakeGcEntry(overrides = {}) {
+  return { name: 'X', teamColor: '#000', teamId: 1, totalPoints: 0, polkaPoints: 0, yellowPoints: 0, stageWins: 0, stageRanks: [], ...overrides };
+}
+
+check("Aucun maillot à pois si personne n'a de polkaPoints (ex. après une étape de CLM)", () => {
+  App.totalStages = 21;
+  App.stageIndex = 1; // >= 1 : maillots actifs
+  App.gc = new Map([
+    [1, fakeGcEntry({ totalPoints: 20, yellowPoints: 0 })],
+    [2, fakeGcEntry({ totalPoints: 15, yellowPoints: 5 })],
+  ]);
+  computeJerseys();
+  assert.equal(App.jerseys.polka, null, 'personne ne doit porter le maillot à pois sans le moindre point de montagne');
+});
+
+check('Le maillot à pois revient bien au meilleur grimpeur dès que des points existent', () => {
+  App.totalStages = 21;
+  App.stageIndex = 2;
+  // Le coureur 3 n'est ni en tête au temps ni aux points : seul un des
+  // deux jerseys "prioritaires" (jaune, vert) doit lui échapper, pour
+  // rester disponible pour le maillot à pois.
+  App.gc = new Map([
+    [1, fakeGcEntry({ totalPoints: 20, yellowPoints: 0, polkaPoints: 0 })],
+    [2, fakeGcEntry({ totalPoints: 15, yellowPoints: 5, polkaPoints: 0 })],
+    [3, fakeGcEntry({ totalPoints: 5, yellowPoints: 10, polkaPoints: 8 })],
+  ]);
+  computeJerseys();
+  assert.equal(App.jerseys.polka, 3, 'le coureur 3, seul à avoir des points de montagne, doit porter le maillot à pois');
+});
+
+ console.log(`\n=== ${passed} test(s) passé(s) ===`);

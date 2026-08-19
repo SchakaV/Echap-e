@@ -83,3 +83,17 @@ export function createRider({ name, teamId, teamColor, specKey, isAI }) {
     totalPoints: 0,
   };
 }
+
+/**
+ * Fait avancer le compteur d'identifiants de coureur au moins jusqu'à
+ * `n + 1`, si besoin. Utilisé après le chargement d'une partie sauvegardée
+ * (voir save-load.js) : les coureurs restaurés gardent leurs identifiants
+ * d'origine, donc tout nouveau coureur créé plus tard dans la session (une
+ * toute nouvelle course, par exemple) doit repartir au-delà du plus grand
+ * id déjà utilisé, pour ne jamais entrer en collision avec ceux restaurés.
+ */
+export function setRiderIdCounterAtLeast(n) {
+  if (typeof n === 'number' && n >= riderIdCounter) {
+    riderIdCounter = n + 1;
+  }
+}

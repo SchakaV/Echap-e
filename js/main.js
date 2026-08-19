@@ -10,6 +10,7 @@ import { bindTeamsScreen } from './teams-screen.js';
 import { bindRaceScreen } from './race-loop.js';
 import { bindResultsScreen } from './results-screen.js';
 import { initOnline } from './online.js';
+import { bindSaveLoad } from './save-load.js';
 
 function init() {
   bindNav();
@@ -19,6 +20,7 @@ function init() {
   bindResultsScreen();
   bindMusicToggle();
   initOnline(nav);
+  bindSaveLoad(nav);
   nav('screen-home');
 }
 

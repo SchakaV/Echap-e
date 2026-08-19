@@ -216,7 +216,7 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
     if (c < firstCol || c > finishColumn) return 0;
     const dz = elevPxAt(c + 1) - elevPxAt(c);
     if (!dz) return 0;
-    return (Math.atan2(dz, cellStep) * 180) / Math.PI;
+    return (Math.atan2(-dz, cellStep) * 180) / Math.PI;
   };
 
   const markerRow = document.createElement('div');
@@ -617,6 +617,17 @@ export function renderStageResults(container, state, { isStageRace, gc, pointsBy
     gcSorted.forEach((r, i) => {
       const jersey = i === 0 ? '🟢 ' : '';
       html += `<tr><td>${i + 1}</td><td>${jersey}${r.name}</td><td style="color:${r.teamColor}">●</td><td>${r.totalPoints}</td></tr>`;
+    });
+    html += '</tbody></table>';
+
+    // Maillot à pois : classement général de la montagne.
+    html += '<h3 style="font-family:var(--font-display);letter-spacing:.03em;margin-top:28px;color:var(--polka-red)">🔴 Classement général — meilleur grimpeur (maillot à pois)</h3>';
+
+    html += '<table><thead><tr><th>Rang</th><th>Coureur</th><th>Équipe</th><th>Points montagne</th></tr></thead><tbody>';
+    const polkaSorted = [...gc].sort((a, b) => (b.polkaPoints || 0) - (a.polkaPoints || 0));
+    polkaSorted.forEach((r, i) => {
+      const jersey = i === 0 ? '🔴 ' : '';
+      html += `<tr><td>${i + 1}</td><td>${jersey}${r.name}</td><td style="color:${r.teamColor}">●</td><td>${r.polkaPoints || 0}</td></tr>`;
     });
     html += '</tbody></table>';
   }

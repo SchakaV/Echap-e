@@ -26,36 +26,80 @@ export function compareYellow(entryA, entryB) {
   }
   return 0;
 }
-
 export function computeJerseys() {
   if (App.totalStages <= 1 || App.stageIndex < 1) {
     App.jerseys = null;
     return;
   }
-  // Maillot jaune : le plus petit retard cumulé gagne. En cas d'égalité,
-  // on compare les classements d'étape un par un pour départager.
-  const entries = Array.from(App.gc.entries());
-  const sortedYellow = [...entries].sort((a, b) => compareYellow(a[1], b[1]));
-  const yellowId = sortedYellow.length ? sortedYellow[0][0] : null;
 
-  // Maillot vert : meilleur total de points, sauf s'il s'agit du même
-  // coureur que le maillot jaune — auquel cas il revient au 2e du
-  // classement aux points (le jaune prime toujours sur le vert).
-  const byPoints = [...entries].sort((a, b) => (b[1].totalPoints || 0) - (a[1].totalPoints || 0));
-  let greenId = byPoints.length ? byPoints[0][0] : null;
-  if (greenId === yellowId && byPoints.length > 1) {
-    greenId = byPoints[1][0];
+  const entries = Array.from(App.gc.entries());
+
+  // ============================================================
+  // 1 — MAILLOT JAUNE
+  // ============================================================
+
+  const sortedYellow = [...entries]
+    .sort((a, b) => compareYellow(a[1], b[1]));
+
+  const yellowId = sortedYellow.length
+    ? sortedYellow[0][0]
+    : null;
+
+  // Les coureurs qui portent déjà un maillot sont exclus
+  // des attributions suivantes.
+  const alreadyWearing = new Set();
+
+  if (yellowId !== null) {
+    alreadyWearing.add(yellowId);
   }
 
-  // Maillot à pois (meilleur grimpeur) : basé UNIQUEMENT sur les points
-  // de cols accumulés (polkaPoints), indépendamment du jaune et du vert
-  // — comme au vrai Tour, un coureur peut porter le maillot à pois même
-  // s'il porte déjà un autre maillot. En cas d'égalité, le 1er trié
-  // l'emporte (l'ordre de App.gc est stable).
-  const byPolka = [...entries].sort((a, b) => (b[1].polkaPoints || 0) - (a[1].polkaPoints || 0));
-  const polkaId = byPolka.length && (byPolka[0][1].polkaPoints || 0) > 0 ? byPolka[0][0] : null;
+  // ============================================================
+  // 2 — MAILLOT VERT
+  // ============================================================
 
-  App.jerseys = { yellow: yellowId, green: greenId, polka: polkaId };
+  const sortedGreen = [...entries]
+    .sort(
+      (a, b) =>
+        (b[1].totalPoints || 0) -
+        (a[1].totalPoints || 0)
+    );
+
+  const greenEntry = sortedGreen.find(
+    ([id]) => !alreadyWearing.has(id)
+  );
+
+  const greenId = greenEntry
+    ? greenEntry[0]
+    : null;
+
+  if (greenId !== null) {
+    alreadyWearing.add(greenId);
+  }
+
+  // ============================================================
+  // 3 — MAILLOT À POIS
+  // ============================================================
+
+  const sortedPolka = [...entries]
+    .sort(
+      (a, b) =>
+        (b[1].polkaPoints || 0) -
+        (a[1].polkaPoints || 0)
+    );
+
+  const polkaEntry = sortedPolka.find(
+    ([id, entry]) => !alreadyWearing.has(id) && (entry.polkaPoints || 0) > 0
+  );
+
+  const polkaId = polkaEntry
+    ? polkaEntry[0]
+    : null;
+
+  App.jerseys = {
+    yellow: yellowId,
+    green: greenId,
+    polka: polkaId
+  };
 }
 
 export function isCurrentStageTeamTT() {
