@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Échappée — Jeu de course cycliste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <div id="top-bar">
+    <label class="music-toggle">
+      <input type="checkbox" id="music-toggle">
+      <span>🎵 Musique d'ambiance</span>
+    </label>
+  </div>
+
+  <!-- ===================== ÉCRAN D'ACCUEIL ===================== -->
+  <section id="screen-home" class="screen active">
+    <div class="home-hero">
+      <div class="bib">N°1</div>
+      <h1 class="title">ÉCHAPPÉE</h1>
+      <p class="subtitle">Composez votre équipe. Lancez le dé. Jouez le peloton.</p>
+      <button class="btn btn-primary" id="btn-go-setup">Nouvelle course</button>
+      <button class="btn btn-ghost" id="btn-go-online" style="display:block;margin:14px auto 0;">Multijoueur en ligne</button>
+      <button class="btn btn-ghost" id="btn-load-game" style="display:block;margin:14px auto 0;">Charger une partie</button>
+    </div>
+    <div class="road-divider"></div>
+  </section>
+
+  <!-- ===================== ÉCRAN CONNEXION MULTIJOUEUR ===================== -->
+  <section id="screen-online-connect" class="screen">
+    <header class="screen-header">
+      <button class="btn btn-ghost" data-nav="screen-home">← Retour</button>
+      <h2>Multijoueur en ligne</h2>
+    </header>
+
+    <div class="setup-grid" style="grid-template-columns:1fr;max-width:480px;margin:0 auto;">
+      <div class="card">
+        <label class="field">
+          <span>Adresse du serveur</span>
+          <input type="text" id="online-server-url" value="">
+          <small>Se remplit automatiquement si le jeu est hébergé en ligne. En local, laissez <code>ws://localhost:8080</code>.</small>
+        </label>
+        <label class="field">
+          <span>Votre prénom</span>
+          <input type="text" id="online-player-name" value="">
+        </label>
+        <label class="field">
+          <span>Code de salle (laisser vide pour en créer une)</span>
+          <input type="text" id="online-room-code" placeholder="ex : BUSMU" maxlength="6" style="text-transform:uppercase;">
+        </label>
+        <div id="online-connect-error" style="color:var(--polka-red);font-size:13px;min-height:18px;"></div>
+        <button class="btn btn-primary btn-lg" id="btn-online-connect">Se connecter</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ÉCRAN SALON MULTIJOUEUR ===================== -->
+  <section id="screen-online-lobby" class="screen">
+    <header class="screen-header">
+      <button class="btn btn-ghost" id="btn-online-leave">← Quitter</button>
+      <h2>Salon — code <span id="online-room-code-label" style="color:var(--maillot-jaune)"></span></h2>
+    </header>
+
+    <div class="teams-layout">
+      <div>
+        <div class="card">
+          <h3>Joueurs connectés</h3>
+          <div id="online-players-list"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <h3>Votre équipe</h3>
+          <div id="online-my-team"></div>
+        </div>
+
+        <div class="card" id="online-host-config" style="margin-top:16px;">
+          <h3>Réglages (hôte)</h3>
+          <label class="field">
+            <span>Profil du terrain</span>
+            <select id="online-terrain-profile">
+              <option value="random">Aléatoire</option>
+              <option value="plaine">Étape de plaine</option>
+              <option value="vallonne">Étape vallonnée</option>
+              <option value="montagne">Étape de montagne</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Longueur du parcours <b id="online-length-val">40</b></span>
+            <input type="range" id="online-track-length" min="24" max="60" value="40">
+          </label>
+          <label class="field">
+            <span>Largeur de route <b id="online-width-val">3</b></span>
+            <input type="range" id="online-track-width" min="2" max="5" value="3">
+          </label>
+          <label class="field">
+            <span>Équipes IA en complément <b id="online-ai-val">0</b></span>
+            <input type="range" id="online-ai-count" min="0" max="5" value="0">
+          </label>
+          <button class="btn btn-primary btn-lg" id="btn-online-start">Démarrer la course</button>
+        </div>
+        <p id="online-waiting-host" class="top3-empty" style="display:none;">En attente que l'hôte démarre la course…</p>
+      </div>
+
+      <aside class="card spec-reference">
+        <h3>Bonus par spécialité</h3>
+        <div id="online-spec-reference-list"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== ÉCRAN CONFIGURATION COURSE ===================== -->
+  <section id="screen-race-setup" class="screen">
+    <header class="screen-header">
+      <button class="btn btn-ghost" data-nav="screen-home">← Retour</button>
+      <h2>Configurer la course</h2>
+        <label class="checkbox-row">
+      <input type="checkbox" id="enable-events">
+      <span>
+        <strong>Événements de course</strong>
+        <small>
+          Des incidents peuvent survenir pendant la course.
+        </small>
+      </span>
+    </label>
+    </header>
+
+    <div class="setup-grid">
+      <div class="card">
+        <h3>Format</h3>
+        <!-- Catégorie de course -->
+  <label class="field">
+    <span>Catégorie de course</span>
+    <select id="race-category">
+      <option value="classic">Course classique</option>
+      <option value="tour2026">Tour de France 2026</option>
+    </select>
+  </label>
+
+  <!-- Paramètres des courses classiques -->
+  <label class="field" id="field-race-format">
+    <span>Type d'épreuve</span>
+    <select id="race-format">
+      <option value="single">Course unique</option>
+      <option value="stage">Course par étapes</option>
+      <option value="timetrial">Contre la montre</option>
+      <option value="team-timetrial">Contre la montre par équipe</option>
+    </select>
+  </label>
+
+  <label class="field" id="field-stage-count" style="display:none">
+    <span>Nombre d'étapes</span>
+    <input type="number" id="stage-count" min="2" max="10" value="3">
+  </label>
+
+  <label class="field" id="field-tt-stage" style="display:none">
+    <span>Contre-la-montre à l'étape</span>
+    <select id="tt-stage-select">
+      <option value="0">Aucun</option>
+    </select>
+    <small>
+      Largeur fixée à 3 voies pour cette étape, quel que soit le réglage
+      ci-dessus. S'il est à l'étape 1, l'ordre de départ est tiré au sort.
+      À partir de l'étape 2, les coureurs s'élancent du dernier au premier
+      du classement général au temps (maillot jaune).
+    </small>
+  </label>
+</div>
+
+      <div class="card">
+        <h3>Parcours</h3>
+        <label class="field">
+          <span>Profil du terrain</span>
+          <select id="terrain-profile">
+            <option value="random">Aléatoire</option>
+            <option value="plaine">Étape de plaine</option>
+            <option value="vallonne">Étape vallonnée</option>
+            <option value="montagne">Étape de montagne</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Longueur du parcours <b id="length-val">40</b> cases</span>
+          <input type="range" id="track-length" min="24" max="60" value="40">
+        </label>
+        <label class="field">
+          <span>Largeur de route (voies) <b id="width-val">3</b></span>
+          <input type="range" id="track-width" min="2" max="5" value="3">
+          <small>Une route étroite crée plus de bouchons dans le peloton — certains gros scores de dé seront inutiles si personne ne peut doubler.</small>
+        </label>
+      </div>
+
+      <div class="card">
+        <h3>Adversaires</h3>
+        <label class="field">
+          <span>Mode</span>
+          <select id="game-mode">
+            <option value="hotseat">Local — même écran</option>
+            <option value="ai">Contre l'IA</option>
+            <option value="mixed">Mixte (joueurs + IA)</option>
+          </select>
+        </label>
+        <label class="field" id="field-human-count">
+          <span>Équipes joueurs <b id="human-count-val">2</b></span>
+          <input type="range" id="human-count" min="1" max="6" value="2">
+        </label>
+        <label class="field" id="field-ai-count">
+          <span>Équipes IA <b id="ai-count-val">1</b></span>
+          <input type="range" id="ai-count" min="0" max="5" value="1">
+        </label>
+      </div>
+    </div>
+
+
+
+    <button class="btn btn-primary btn-lg" id="btn-go-teams">Composer les équipes →</button>
+  </section>
+
+  <!-- ===================== ÉCRAN COMPOSITION D'ÉQUIPE ===================== -->
+  <section id="screen-teams" class="screen">
+    <header class="screen-header">
+      <button class="btn btn-ghost" data-nav="screen-race-setup">← Retour</button>
+      <h2>Composition des équipes</h2>
+    </header>
+
+    <div class="teams-layout">
+      <div id="teams-container"></div>
+      <aside class="card spec-reference">
+        <h3>Bonus par spécialité</h3>
+        <div id="spec-reference-list"></div>
+      </aside>
+    </div>
+
+    <button class="btn btn-primary btn-lg" id="btn-start-race">Prendre le départ →</button>
+  </section>
+
+  <!-- ===================== ÉCRAN COURSE ===================== -->
+  <section id="screen-race" class="screen">
+    <header class="race-header">
+      <div class="race-info">
+        <span id="stage-label">Étape 1/1</span>
+      </div>
+      <div class="race-controls">
+        <button class="btn btn-ghost" id="btn-toggle-rules">Rappel des règles</button>
+        <button class="btn btn-ghost" id="btn-save-race" title="Enregistrer la partie en cours dans un fichier">💾 Enregistrer la partie</button>
+        <button class="btn btn-ghost" id="btn-sim-race" title="Simuler le reste de la course">Simuler jusqu'à l'arrivée</button>
+        <button class="btn btn-ghost" id="btn-race-home" title="Quitter la course et revenir à l'accueil">← Accueil</button>
+      </div>
+    </header>
+
+    <div id="rules-panel" class="rules-panel hidden">
+      <div class="rules-columns">
+        <div>
+          <h4>Rappel des règles</h4>
+          <ul>
+            <li><b>Déplacement</b> : chaque point obtenu au dé est un pas — tout droit (une case complète) ou en diagonale (une demi-case seulement, à cause du pavage décalé). Zigzaguer pour doubler coûte donc un peu de progression. Seules les cases libres comptent : impossible de passer à travers un coureur.</li>
+            <li><b>Ordre de jeu</b> : à chaque manche, le coureur le plus avancé joue en premier.</li>
+            <li><b>Terrain</b> : <span class="legend inline-legend"><span class="dot plaine"></span> Plaine <span class="dot vallon"></span> Vallon <span class="dot montagne"></span> Montagne</span> — chaque spécialité a ses bonus selon le terrain sous le coureur au moment du jet.</li>
+            <li><b>Aspiration</b> : à la fin de chaque manche complète (une fois que tous les coureurs ont joué), tout coureur placé juste derrière un autre (même voie) gagne +1 au prochain jet.</li>
+            <li><b>Protection contre le vent</b> : si ce coureur juste devant est un coéquipier et que ça dure 2 manches d'affilée, +1 supplémentaire s'ajoute (cumulable avec l'aspiration normale).</li>
+            <li><b>Échappée</b> : un baroudeur seul en tête, sans rival à moins de 4 cases derrière lui, gagne un bonus.</li>
+            <li><b>Groupes de course</b> (course normale) : les coureurs sont répartis en groupes — échappée, poursuivants, peloton (le plus gros groupe) et retardataires — séparés dès qu’il y a plus de 3 cases d’écart. Un baroudeur en tête d’un groupe de poursuivants ou de retardataires (au moins 2 coureurs) gagne +1 pour faire rouler le groupe — acquis en fin de manche, utilisable à la manche suivante (même principe que l’aspiration). En contre-la-montre, ni peloton ni groupe.</li>
+            <li><b>Sprint final</b> : les 4 dernières cases avant la ligne donnent un bonus au sprinteur.</li>
+            <li><b>Bouchon</b> : si aucun chemin libre n'existe sur la distance du dé, le coureur s'arrête à la dernière case atteignable.</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Bonus / malus par spécialité</h4>
+          <div id="race-spec-reference"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="race-layout">
+      <div class="race-main">
+
+    <div id="turn-panel" class="turn-panel">
+      <div class="turn-info">
+        <span class="turn-swatch" id="turn-swatch"></span>
+        <span id="turn-text">—</span>
+      </div>
+      <div class="dice-area">
+        <div class="die" id="die-face"></div>
+        <div id="dice-breakdown"></div>
+        <button class="btn btn-primary" id="btn-roll-dice">Lancer le dé</button>
+      </div>
+    </div>
+
+    <div id="board-wrap" style="
+    overflow-x:auto;
+    overflow-y:visible;
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--asphalt-2);
+    padding:64px 14px 14px;
+    margin-bottom:18px;
+">
+      <div id="board"></div>
+    </div>
+
+    <div class="log-row">
+      <div id="log-panel">
+        <h4>Journal de course</h4>
+        <div id="log-content"></div>
+      </div>
+
+      <aside class="card roster-card peloton-card">
+        <h3>Peloton &amp; groupes</h3>
+        <div id="roster-panel"></div>
+      </aside>
+    </div>
+      </div>
+
+      <aside class="card roster-card standings-card">
+        <div id="top3-yellow-panel-wrap">
+          <h3>Classement général (🟡 temps)</h3>
+          <div id="top3-yellow-panel"></div>
+        </div>
+        <div id="top3-panel-wrap" style="margin-top:16px;">
+          <h3>Classement général (🟢 points)</h3>
+          <div id="top3-panel"></div>
+        </div>
+        <div id="top3-polka-panel-wrap" style="margin-top:16px;">
+          <h3>Classement grimpeur (🔴 pois)</h3>
+          <div id="top3-polka-panel"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== ÉCRAN RÉSULTATS ===================== -->
+  <section id="screen-results" class="screen">
+    <header class="screen-header">
+      <h2 id="results-title">Résultats</h2>
+    </header>
+    <div id="results-content"></div>
+    <div class="results-actions">
+      <button class="btn btn-primary" id="btn-next-stage">Étape suivante →</button>
+      <button class="btn btn-ghost" id="btn-back-home">Retour à l'accueil</button>
+    </div>
+  </section>
+
+  <!-- ===================== ÉCRAN COURSE (MULTIJOUEUR) ===================== -->
+  <section id="screen-online-race" class="screen">
+    <header class="race-header">
+      <div class="race-info">
+        <span>Course en ligne — salon <span id="online-race-code" style="color:var(--maillot-jaune)"></span></span>
+        <span class="legend">
+          <span class="dot plaine"></span> Plaine
+          <span class="dot vallon"></span> Vallon
+          <span class="dot montagne"></span> Montagne
+        </span>
+      </div>
+    </header>
+
+    <div id="online-turn-panel" class="turn-panel">
+      <div class="turn-info">
+        <span class="turn-swatch" id="online-turn-swatch"></span>
+        <span id="online-turn-text">—</span>
+      </div>
+      <div class="dice-area">
+        <div class="die" id="online-die-face"></div>
+        <div id="online-dice-breakdown"></div>
+        <button class="btn btn-primary" id="btn-online-roll-dice" style="display:none;">Lancer le dé</button>
+      </div>
+    </div>
+
+    <div class="race-layout">
+      <div class="race-main">
+        <div id="online-board-wrap" style="overflow-x:auto;overflow-y:visible;border:1px solid var(--line);border-radius:var(--radius);background:var(--asphalt-2);padding:64px 14px 14px;margin-bottom:18px;">
+          <div id="online-board"></div>
+        </div>
+        <div id="online-log-panel">
+          <h4>Journal de course</h4>
+          <div id="online-log-content"></div>
+        </div>
+      </div>
+      <aside class="card roster-card">
+        <h3>Peloton</h3>
+        <div id="online-roster-panel"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== ÉCRAN RÉSULTATS (MULTIJOUEUR) ===================== -->
+  <section id="screen-online-results" class="screen">
+    <header class="screen-header">
+      <h2>Résultats</h2>
+    </header>
+    <div id="online-results-content"></div>
+    <div class="results-actions">
+      <button class="btn btn-primary" id="btn-online-back-lobby" style="display:none;">Retour au salon</button>
+      <button class="btn btn-ghost" id="btn-online-results-leave">Quitter la partie</button>
+    </div>
+  </section>
+
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
