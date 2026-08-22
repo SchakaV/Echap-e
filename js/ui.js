@@ -286,13 +286,47 @@ function buildStaticGrid(boardEl, board, finishColumn, structureKey) {
   // même après une reconstruction de la grille.
   if (!boardEl._hasBoardClickDelegation) {
     boardEl.addEventListener('click', (ev) => {
-      const cellEl = ev.target.closest('.cell');
-      if (!cellEl) return;
       const live = boardEl._boardCache;
       if (!live || !live.onCellClick) return;
-      const key = `${cellEl.dataset.col}-${cellEl.dataset.lane}`;
-      if (!live.highlightSet.has(key) && !live.placeableSet.has(key)) return;
-      live.onCellClick(Number(cellEl.dataset.col), Number(cellEl.dataset.lane));
+
+      const fire = (key) => {
+        const [col, lane] = key.split('-');
+        live.onCellClick(Number(col), Number(lane));
+      };
+
+      const cellEl = ev.target.closest('.cell');
+      if (cellEl) {
+        const key = `${cellEl.dataset.col}-${cellEl.dataset.lane}`;
+        if (live.highlightSet.has(key) || live.placeableSet.has(key)) {
+          fire(key);
+          return;
+        }
+      }
+
+      // Pavage décalé + élévation 3D : une case en surbrillance peut être
+      // partiellement recouverte par la case de la voie voisine (plus
+      // proche de la caméra), qui intercepte le clic sans être elle-même
+      // cliquable. Si le clic tombe dans le rectangle À L'ÉCRAN d'une case
+      // en surbrillance (getBoundingClientRect tient compte des rotations
+      // 3D), on la sélectionne quand même — c'est bien elle que le joueur
+      // voit et vise.
+      const candidates = [...live.highlightSet, ...live.placeableSet];
+      if (!candidates.length) return;
+      let best = null;
+      let bestDist = Infinity;
+      for (const key of candidates) {
+        const el = live.cellsByKey.get(key);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (ev.clientX >= r.left && ev.clientX <= r.right &&
+            ev.clientY >= r.top && ev.clientY <= r.bottom) {
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          const dist = (ev.clientX - cx) ** 2 + (ev.clientY - cy) ** 2;
+          if (dist < bestDist) { bestDist = dist; best = key; }
+        }
+      }
+      if (best) fire(best);
     });
     boardEl._hasBoardClickDelegation = true;
   }

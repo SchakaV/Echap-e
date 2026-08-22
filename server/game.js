@@ -4,7 +4,8 @@
 // fait autorité sur l'état de la course, les clients ne font qu'afficher
 // ce qu'il leur envoie et lui transmettre les actions du joueur.
 
-import { generateBoard, setStartDepth } from '../js/board.js';
+import { generateBoard, createFixedBoard, setStartDepth } from '../js/board.js';
+import { getTourStage } from '../js/tour2026.js';
 import { createRider, SPECIALIZATIONS } from '../js/rider.js';
 import * as engine from '../js/engine.js';
 import * as events from '../js/events.js';
@@ -26,6 +27,15 @@ function makeToken() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 function defaultRiders(isAI) {
   const specKeys = Object.keys(SPECIALIZATIONS);
   const used = [];
@@ -44,7 +54,7 @@ export class Room {
     this.players = new Map();   // clientId -> { name, teamId }
     this.teams = [];            // { id, name, color, isAI, ownerId, ownerToken, riders: [{name, specKey}] }
     this.phase = 'lobby';       // lobby | racing | results
-    this.config = { trackLength: 40, trackWidth: 3, terrainProfile: 'random', aiCount: 0, eventsEnabled: false, twoDice: false };
+    this.config = { raceCategory: 'classic', tourStageNumber: 1, trackLength: 40, trackWidth: 3, terrainProfile: 'random', aiCount: 0, eventsEnabled: false, twoDice: false };
     this.hostId = null;
     this.log = [];
 
@@ -58,6 +68,9 @@ export class Room {
     // id du coureur dont le début de tour a déjà été traité — protège contre
     // un double traitement si processTurn est relancé (reconnexion).
     this.turnStartedFor = null;
+    // true si l'étape en cours est un contre-la-montre par équipe (les
+    // équipes s'élancent à la file indienne, 2 manches d'écart).
+    this.isTeamTT = false;
   }
 
   addLog(message) {
@@ -168,6 +181,8 @@ export class Room {
     if (config.trackLength) c.trackLength = Math.max(24, Math.min(60, config.trackLength | 0));
     if (config.trackWidth) c.trackWidth = Math.max(2, Math.min(5, config.trackWidth | 0));
     if (config.terrainProfile) c.terrainProfile = config.terrainProfile;
+    if (config.raceCategory === 'classic' || config.raceCategory === 'tour2026') c.raceCategory = config.raceCategory;
+    if (config.tourStageNumber !== undefined) c.tourStageNumber = Math.max(1, Math.min(21, config.tourStageNumber | 0)) || 1;
     if (config.aiCount !== undefined) c.aiCount = Math.max(0, Math.min(5, config.aiCount | 0));
     if (config.eventsEnabled !== undefined) c.eventsEnabled = !!config.eventsEnabled;
     if (config.twoDice !== undefined) c.twoDice = !!config.twoDice;
@@ -184,11 +199,19 @@ export class Room {
       this.teams.push({ id: `cpu-${i}-${this.id}`, name: `Équipe CPU ${i + 1}`, color, isAI: true, ownerId: null, ownerToken: null, riders: defaultRiders(true) });
     }
 
-    this.board = generateBoard({
-      length: this.config.trackLength,
-      width: this.config.trackWidth,
-      profile: this.config.terrainProfile,
-    });
+    const isTour = this.config.raceCategory === 'tour2026';
+    if (isTour) {
+      const stage = getTourStage(this.config.tourStageNumber);
+      this.board = createFixedBoard(stage);
+      this.isTeamTT = stage.type === 'team-time-trial';
+    } else {
+      this.board = generateBoard({
+        length: this.config.trackLength,
+        width: this.config.trackWidth,
+        profile: this.config.terrainProfile,
+      });
+      this.isTeamTT = false;
+    }
 
     this.allRiders = [];
     this.teams.forEach(team => {
@@ -198,13 +221,25 @@ export class Room {
       this.allRiders.push(...team.riderObjs);
     });
 
-    setStartDepth(this.board, this.allRiders.length);
-    this.autoPlaceRiders();
+    if (this.isTeamTT) {
+      // Contre-la-montre par équipes (étape 1 du Tour) : pas de grille, les
+      // équipes s'élancent à la file indienne — l'ordre de départ est tiré
+      // au sort (pas de classement général en ligne).
+      this.board.startDepth = Math.max(1, ...this.teams.map(t => t.riderObjs.length));
+      const shuffledTeams = shuffle(this.teams.map(t => t.riderObjs));
+      const teamStartOrder = shuffledTeams.map(riders => shuffle([...riders]));
+      this.state = engine.createTeamTimeTrialState(this.board, this.allRiders, teamStartOrder);
+    } else {
+      setStartDepth(this.board, this.allRiders.length);
+      this.autoPlaceRiders();
+      this.state = engine.createRaceState(this.board, this.allRiders, { twoDice: this.config.twoDice });
+    }
 
-    this.state = engine.createRaceState(this.board, this.allRiders, { twoDice: this.config.twoDice });
     this.phase = 'racing';
     this.log = [];
-    this.addLog(`Grille de départ tirée au sort — ${this.allRiders.length} coureurs sur ${this.board.startDepth} ligne(s).`);
+    this.addLog(isTour
+      ? `Tour de France 2026 — Étape ${this.config.tourStageNumber} : ${getTourStage(this.config.tourStageNumber).name}`
+      : `Grille de départ tirée au sort — ${this.allRiders.length} coureurs sur ${this.board.startDepth} ligne(s).`);
     this.startRound();
   }
 
@@ -231,7 +266,29 @@ export class Room {
     // La manche de la chute est terminée : on relève les coureurs tombés
     // (le jeton ne reste couché que pendant la manche où la chute a eu lieu).
     this.state.riders.forEach(r => { r.hasCrashed = false; });
-    this.order = engine.roundOrder(this.state);
+
+    if (this.state.isTimeTrial) {
+      // Contre-la-montre : les nouveaux partants s'élancent en début de
+      // manche (toutes les `ttStartInterval` manches en CLM par équipe).
+      const interval = this.isTeamTT ? (this.state.ttStartInterval || 1) : 1;
+      const due = (this.state.round - 1) % interval === 0;
+      const pending = this.state.ttPendingStart === true;
+      const introduced = (due || pending)
+        ? (this.isTeamTT
+            ? engine.introduceNextTeamTT(this.state)
+            : engine.introduceNextTTRider(this.state))
+        : null;
+      // Si aucun départ n'a pu se faire cette manche (pas de voie libre),
+      // on réessaiera la manche suivante.
+      this.state.ttPendingStart = (due || pending) && !introduced;
+      if (introduced) {
+        const label = this.isTeamTT ? introduced[0].name : introduced.name;
+        this.addLog(`<b>${label}</b> s'élance !`);
+      }
+      this.order = engine.ttRoundOrder(this.state);
+    } else {
+      this.order = engine.roundOrder(this.state);
+    }
     this.orderIdx = 0;
     this.pendingRoll = null;
     this.turnStartedFor = null;
@@ -337,10 +394,17 @@ export class Room {
   endRoundIfNeeded() {
     if (this.orderIdx < this.order.length) return false;
     engine.updateDraftBonuses(this.state);
-    const finishers = this.state.riders.filter(r => r.finished && r.finishRound === this.state.round);
-    if (finishers.length) engine.rankFinishersOfRound(this.state, finishers);
+    let allDone;
+    if (this.state.isTimeTrial) {
+      allDone = engine.allTTFinished(this.state);
+      if (allDone) engine.rankTimeTrialResults(this.state);
+    } else {
+      const finishers = this.state.riders.filter(r => r.finished && r.finishRound === this.state.round);
+      if (finishers.length) engine.rankFinishersOfRound(this.state, finishers);
+      allDone = engine.allFinished(this.state);
+    }
     this.addLog(`— Fin de la manche ${this.state.round} —`);
-    if (engine.allFinished(this.state)) {
+    if (allDone) {
       this.phase = 'results';
       return true;
     }

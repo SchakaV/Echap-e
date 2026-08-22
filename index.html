@@ -82,6 +82,17 @@
         <div class="card" id="online-host-config" style="margin-top:16px;">
           <h3>Réglages (hôte)</h3>
           <label class="field">
+            <span>Catégorie de course</span>
+            <select id="online-race-category">
+              <option value="classic">Course classique</option>
+              <option value="tour2026">Tour de France 2026</option>
+            </select>
+          </label>
+          <label class="field" id="online-field-tour-stage" style="display:none">
+            <span>Étape du Tour</span>
+            <select id="online-tour-stage"></select>
+          </label>
+          <label class="field" id="online-field-terrain-profile">
             <span>Profil du terrain</span>
             <select id="online-terrain-profile">
               <option value="random">Aléatoire</option>
@@ -90,11 +101,11 @@
               <option value="montagne">Étape de montagne</option>
             </select>
           </label>
-          <label class="field">
+          <label class="field" id="online-field-track-length">
             <span>Longueur du parcours <b id="online-length-val">40</b></span>
             <input type="range" id="online-track-length" min="24" max="60" value="40">
           </label>
-          <label class="field">
+          <label class="field" id="online-field-track-width">
             <span>Largeur de route <b id="online-width-val">3</b></span>
             <input type="range" id="online-track-width" min="2" max="5" value="3">
           </label>
@@ -107,7 +118,7 @@
             <input type="checkbox" id="online-events-enabled" style="width:auto;">
             <small style="color:var(--chalk-dim);font-size:12px;">Des incidents peuvent survenir pendant la course (chutes, crevaisons…).</small>
           </label>
-          <label class="field">
+          <label class="field" id="online-field-two-dice" style="display:none">
             <span>Deux dés de déplacement</span>
             <input type="checkbox" id="online-two-dice" style="width:auto;">
           </label>

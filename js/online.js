@@ -7,6 +7,7 @@
 import { NetClient } from './net.js';
 import { SPECIALIZATIONS } from './rider.js';
 import { TEAM_COLORS } from './colors.js';
+import { TOUR_2026 } from './tour2026.js';
 import * as engine from './engine.js';
 import * as ui from './ui.js';
 
@@ -32,6 +33,11 @@ const Net = {
   code: null,
   room: null,
   pendingDice: null, // { riderId, rollInfo, cells }
+  // Dernières cases proposées (avec leur chemin) pour CHAQUE coureur ayant
+  // lancé son dé — sert à animer le déplacement quand l'état suivant arrive.
+  pendingMoves: new Map(), // riderId -> [{column, lane, path}]
+  // Positions actuellement affichées sur le plateau (riderId -> "col-lane").
+  currentPos: new Map(),
 };
 
 function myTeam() {
@@ -99,6 +105,7 @@ function bindConnectScreen(nav) {
       });
       client.on('diceRolled', (msg) => {
         Net.pendingDice = msg;
+        Net.pendingMoves.set(msg.riderId, msg.cells || []);
         onDiceRolled();
       });
       client.on('error', (msg) => {
@@ -129,6 +136,8 @@ function leaveOnline(nav) {
   Net.clientId = null;
   Net.code = null;
   Net.pendingDice = null;
+  Net.pendingMoves.clear();
+  Net.currentPos.clear();
   nav('screen-home');
 }
 
@@ -137,16 +146,41 @@ function leaveOnline(nav) {
 function bindLobbyScreen() {
   ui.renderSpecReference($('#online-spec-reference-list'), SPECIALIZATIONS);
 
+  // Liste des étapes du Tour de France 2026.
+  const stageSelect = $('#online-tour-stage');
+  stageSelect.innerHTML = Object.values(TOUR_2026.stages).map(s =>
+    `<option value="${s.number}">${s.number} — ${s.name}${s.type === 'team-time-trial' ? ' (CLM par équipe)' : ''}</option>`
+  ).join('');
+
   ['online-track-length', 'online-track-width', 'online-ai-count'].forEach(id => {
     $(`#${id}`).addEventListener('input', sendConfigFromForm);
   });
-  ['online-events-enabled', 'online-two-dice'].forEach(id => {
+  ['online-events-enabled', 'online-two-dice', 'online-race-category', 'online-tour-stage', 'online-terrain-profile'].forEach(id => {
     $(`#${id}`).addEventListener('change', sendConfigFromForm);
   });
-  $('#online-terrain-profile').addEventListener('change', sendConfigFromForm);
   $('#btn-online-start').addEventListener('click', () => {
     Net.client && Net.client.send({ type: 'startRace' });
   });
+}
+
+/** Affiche/masque les réglages propres à chaque catégorie de course : en
+ *  Tour de France, le parcours (profil, longueur, largeur) est imposé par
+ *  l'étape — seul le choix de l'étape reste pertinent. */
+function applyCategoryFields() {
+  const isTour = $('#online-race-category').value === 'tour2026';
+  $('#online-field-tour-stage').style.display = isTour ? 'block' : 'none';
+  ['online-field-terrain-profile', 'online-field-track-length', 'online-field-track-width'].forEach(id => {
+    $(`#${id}`).style.display = isTour ? 'none' : '';
+  });
+  // Comme en solo, l'option des 2 dés n'est proposée que pour le Tour de
+  // France (les courses classiques en ligne restent à un seul dé).
+  const twoDiceField = $('#online-field-two-dice');
+  if (isTour) {
+    twoDiceField.style.display = 'block';
+  } else {
+    twoDiceField.style.display = 'none';
+    $('#online-two-dice').checked = false;
+  }
 }
 
 function sendConfigFromForm() {
@@ -154,9 +188,12 @@ function sendConfigFromForm() {
   $('#online-length-val').textContent = $('#online-track-length').value;
   $('#online-width-val').textContent = $('#online-track-width').value;
   $('#online-ai-val').textContent = $('#online-ai-count').value;
+  applyCategoryFields();
   Net.client.send({
     type: 'updateConfig',
     config: {
+      raceCategory: $('#online-race-category').value,
+      tourStageNumber: parseInt($('#online-tour-stage').value, 10) || 1,
       trackLength: parseInt($('#online-track-length').value, 10),
       trackWidth: parseInt($('#online-track-width').value, 10),
       terrainProfile: $('#online-terrain-profile').value,
@@ -232,6 +269,9 @@ function renderLobby() {
   if (isHost()) {
     hostConfig.style.display = 'block';
     waiting.style.display = 'none';
+    $('#online-race-category').value = Net.room.config.raceCategory || 'classic';
+    $('#online-tour-stage').value = Net.room.config.tourStageNumber || 1;
+    applyCategoryFields();
     $('#online-terrain-profile').value = Net.room.config.terrainProfile;
     $('#online-track-length').value = Net.room.config.trackLength;
     $('#online-length-val').textContent = Net.room.config.trackLength;
@@ -264,17 +304,108 @@ function pushMyRoster() {
 
 /* ============================= COURSE ============================= */
 
+// Une animation de déplacement en cours ne doit pas être interrompue par
+// l'état suivant (les coups des IA arrivent toutes les ~750 ms alors qu'une
+// animation dure ~1,3 s) : on la laisse se terminer, puis on re-traite le
+// dernier état reçu.
+let animating = false;
+let pendingRender = false;
+
 function onRoomUpdate(nav) {
   if (!Net.room) return;
   if (Net.room.phase === 'lobby') {
     renderLobby();
   } else if (Net.room.phase === 'racing') {
     nav('screen-online-race');
-    renderRace();
+    if (animating) {
+      pendingRender = true;
+      return;
+    }
+    animateMovedRiders(() => {
+      animating = false;
+      if (pendingRender) {
+        pendingRender = false;
+        onRoomUpdate(nav);
+      } else {
+        renderRace();
+      }
+    });
   } else if (Net.room.phase === 'results') {
     nav('screen-online-results');
     renderResults();
   }
+}
+
+/** Anime les déplacements entre l'état précédent et le nouvel état reçu :
+ *  chaque coureur qui a changé de case est déplacé pas à pas le long du
+ *  chemin annoncé lors de son jet (diceRolled), comme en solo — au lieu
+ *  d'être téléporté. Les positions intermédiaires sont rendues dans
+ *  #online-board, puis `onDone` fait le rendu final de l'état reçu. */
+function animateMovedRiders(onDone) {
+  animating = true;
+  const room = Net.room;
+  if (!room) { animating = false; onDone(); return; }
+
+  const moved = room.riders.filter(r =>
+    r.column !== null && r.column !== undefined &&
+    Net.currentPos.get(r.id) !== `${r.column}-${r.lane}`
+  );
+
+  if (!moved.length) { animating = false; onDone(); return; }
+
+  let i = 0;
+  const stepDuration = 220;
+
+  function animateNext() {
+    if (i >= moved.length) { onDone(); return; }
+    const rider = moved[i];
+    const targetKey = `${rider.column}-${rider.lane}`;
+
+    // Premier apparition (départ, CLM) : pas d'animation, on place.
+    if (!Net.currentPos.has(rider.id)) {
+      Net.currentPos.set(rider.id, targetKey);
+      i++;
+      animateNext();
+      return;
+    }
+
+    const targetCell = (Net.pendingMoves.get(rider.id) || []).find(c =>
+      c.column === rider.column && c.lane === rider.lane
+    );
+    const path = targetCell && targetCell.path ? targetCell.path : [];
+    if (!path.length) {
+      // Pas de chemin connu (reconnexion, téléportation) : on place direct.
+      Net.currentPos.set(rider.id, targetKey);
+      i++;
+      animateNext();
+      return;
+    }
+
+    let stepIdx = 0;
+    const step = () => {
+      if (stepIdx >= path.length) {
+        Net.currentPos.set(rider.id, targetKey);
+        i++;
+        animateNext();
+        return;
+      }
+      const { column, lane } = path[stepIdx];
+      const tempRiders = room.riders.map(r =>
+        r.id === rider.id ? { ...r, column, lane, finished: false } : r
+      );
+      ui.renderBoard($('#online-board'), {
+        board: room.board,
+        riders: tempRiders,
+        finishColumn: room.finishColumn,
+      }, { autoScroll: 'edge' });
+      Net.currentPos.set(rider.id, `${column}-${lane}`);
+      stepIdx++;
+      setTimeout(step, stepDuration);
+    };
+    step();
+  }
+
+  animateNext();
 }
 
 function setTurnPanel(color, text) {
@@ -295,6 +426,7 @@ function renderRace() {
     activeCell: { column: rider.column, lane: rider.lane },
     autoScroll: true,
   } : {});
+  Net.currentPos = new Map(room.riders.map(r => [r.id, `${r.column}-${r.lane}`]));
   ui.renderRoster($('#online-roster-panel'), room.riders, room.board);
 
   $('#online-log-content').innerHTML = '';
@@ -335,15 +467,14 @@ function breakdownText(rollInfo) {
   return `${bits.join(' · ')} = <b>${rollInfo.total}</b> case(s).`;
 }
 
-/** Complète le détail du dé avec la portée réelle des cases proposées
- *  (colonne la plus avancée atteignable), pour comprendre immédiatement
- *  pourquoi des cases plus loin ne sont pas cliquables. */
+/** Complète le détail du dé selon la situation : arrivée atteignable, ou
+ *  bouchon qui empêche d'utiliser tous les pas du dé. (La portée en
+ *  colonnes n'est pas affichée : c'est déjà visible sur le plateau.) */
 function reachHint(cells, blocked, finishing) {
   if (!cells || !cells.length) return '';
-  const maxColumn = Math.max(...cells.map(c => c.column));
   if (finishing) return ' \u2014 la ligne d\u2019arriv\u00e9e est atteignable !';
-  if (blocked) return ` \u2014 bouchon : au plus colonne ${maxColumn}.`;
-  return ` \u2014 port\u00e9e max : colonne ${maxColumn}.`;
+  if (blocked) return ' \u2014 bouchon : certains pas du d\u00e9 sont inutilisables.';
+  return '';
 }
 
 function onDiceRolled() {

@@ -276,17 +276,15 @@ export function breakdownText(rollInfo) {
 }
 
 /**
- * Complète le détail du dé avec la PORTÉE réelle des cases proposées : la
- * colonne la plus avancée atteignable. Permet de comprendre immédiatement
- * pourquoi des cases plus loin ne sont pas cliquables (jet trop court, ou
- * bouchon qui empêche d'utiliser tous les pas du dé).
+ * Complète le détail du dé selon la situation : arrivée atteignable, ou
+ * bouchon qui empêche d'utiliser tous les pas du dé. (La portée en
+ * colonnes n'est pas affichée : c'est déjà visible sur le plateau.)
  */
 function reachHint(target) {
   if (!target || !target.cells || !target.cells.length) return '';
-  const maxColumn = Math.max(...target.cells.map(c => c.column));
   if (target.finishing) return ' \u2014 la ligne d\u2019arriv\u00e9e est atteignable !';
-  if (target.blocked) return ` \u2014 bouchon : au plus colonne ${maxColumn}.`;
-  return ` \u2014 port\u00e9e max : colonne ${maxColumn}.`;
+  if (target.blocked) return ' \u2014 bouchon : certains pas du d\u00e9 sont inutilisables.';
+  return '';
 }
 
 // ============================================================
