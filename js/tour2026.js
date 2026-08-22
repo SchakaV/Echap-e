@@ -17,36 +17,54 @@ const M = TERRAIN.MONTAGNE;
 /**
  * Crée une séquence de terrain à partir de segments.
  *
+ * Chaque segment : [count, type] ou [count, type, gradient] pour la montagne.
+ * Le gradient (pourcentage réel de la pente, ex. 7.3 pour 7,3 %) est rattaché
+ * au segment de terrain : il servira au profil d'altitude 3D.
+ *
  * Exemple :
  * segments([
  *   [31, P],
  *   [1, V],
- *   [3, M]
+ *   [3, M, 6.5]
  * ])
  *
- * donne :
- * [P, P, ..., P, V, M, M, M]
+ * donne { terrain: [P, P, ..., V, M, M, M], gradients: [0, ..., 0, 6.5, 6.5, 6.5] }
  */
 function terrainFromSegments(segments) {
   const terrain = [];
+  const gradients = [];
 
-  for (const [count, type] of segments) {
+  for (const [count, type, gradient] of segments) {
     for (let i = 0; i < count; i++) {
       terrain.push(type);
+      gradients.push(
+        type === TERRAIN.MONTAGNE && gradient ? gradient : 0
+      );
     }
   }
 
-  return terrain;
+  return { terrain, gradients };
 }
 
 /**
- * Vérifie qu'un plateau correspond bien à sa longueur déclarée.
+ * Vérifie qu'un plateau correspond bien à sa longueur déclarée, et que les
+ * gradients accompagnent bien chaque case (un par case, comme le terrain).
  */
 function checkStage(stage) {
   if (stage.terrain.length !== stage.length) {
     throw new Error(
       `Tour 2026 — Étape ${stage.number}: ` +
       `terrain=${stage.terrain.length}, longueur=${stage.length}`
+    );
+  }
+
+  if (
+    stage.gradients &&
+    stage.gradients.length !== stage.length
+  ) {
+    throw new Error(
+      `Tour 2026 — Étape ${stage.number}: ` +
+      `gradients=${stage.gradients.length}, longueur=${stage.length}`
     );
   }
 
@@ -85,12 +103,12 @@ export const TOUR_2026 = {
 
       scale: 0.5,
 
-      terrain: terrainFromSegments([
-        [32, P], // jusqu'à environ 16 km
-        [1, V],  // approche Montjuïc
-        [3, M],  // Côte de Montjuïc
-        [2, V],  // transition / descente
-        [2, M],  // Côte du Stade Olympique
+      ...terrainFromSegments([
+        [33, P],       // jusqu'à l'approche de Montjuïc
+        [1, V],        // approche Montjuïc
+        [3, M, 5.1],   // Côte de Montjuïc
+        [1, V],        // transition / descente
+        [2, M, 7],     // Côte du Stade Olympique
       ]),
 
       features: [
@@ -157,18 +175,17 @@ export const TOUR_2026 = {
 
       scale: 1,
 
-      terrain: terrainFromSegments([
-        [86, P],  // longue partie roulante
-        [3, V],   // approche Begues
-        [6, M],   // Côte de Begues
-        [43, V],  // terrain vallonné
-        [3, V],   // approche Montjuïc
-        [2, M],   // Montjuïc #1
-        [10, V],  // circuit / transition
-        [2, M],   // Montjuïc #2
-        [10, V],  // circuit / transition
-        [2, M],   // Montjuïc #3
-        [2, V],   // final
+      ...terrainFromSegments([
+        [86, P],      // longue partie roulante
+        [2, V],       // approche Begues
+        [7, M, 6.5],  // Côte de Begues
+        [45, V],      // terrain vallonné
+        [3, M, 9.3],  // Montjuïc #1
+        [9, V],       // circuit / transition
+        [3, M, 9.3],  // Montjuïc #2
+        [9, V],       // circuit / transition
+        [3, M, 9.3],  // Montjuïc #3
+        [2, V],       // final
       ]),
 
       features: [
@@ -196,7 +213,7 @@ export const TOUR_2026 = {
           columnStart: 140,
           columnEnd: 142,
           name: 'Montjuïc #1',
-          category: null,
+          category: 3,
           length: 1.6,
           gradient: 9.3
         },
@@ -207,7 +224,7 @@ export const TOUR_2026 = {
           columnStart: 152,
           columnEnd: 154,
           name: 'Montjuïc #2',
-          category: null,
+          category: 3,
           length: 1.6,
           gradient: 9.3
         },
@@ -218,7 +235,7 @@ export const TOUR_2026 = {
           columnStart: 164,
           columnEnd: 166,
           name: 'Montjuïc #3',
-          category: null,
+          category: 3,
           length: 1.6,
           gradient: 9.3
         },
@@ -278,35 +295,35 @@ export const TOUR_2026 = {
    * Les zones montagneuses sont positionnées sur les
    * ascensions officielles de l'étape.
    */
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
 
     // Granollers → pied de la Côte de Saint-Feliu
-    [17, P],
+    [10, P],
 
     // Côte de Saint-Feliu de Codines
     // 7,6 km - 4,5 %
-    [8, M],
+    [8, M, 4.5],
 
     // Saint-Feliu → approche des Pyrénées
-    [92, V],
+    [100, V],
 
     // Col de Toses
     // 9,3 km - 6,5 %
-    [10, M],
+    [11, M, 6.5],
 
     // Descente / Cerdagne
     [32, V],
 
     // Col du Calvaire
     // 11,4 km - 4,1 %
-    [12, M],
+    [12, M, 4.1],
 
     // Col du Calvaire → approche des Angles
-    [23, V],
+    [21, V],
 
     // Montée finale vers Les Angles
     // 1,8 km - 6,5 %
-    [2, M]
+    [2, M, 6.5]
   ]),
 
   features: [
@@ -449,38 +466,38 @@ export const TOUR_2026 = {
    * Les zones M correspondent aux principales ascensions
    * classées officiellement sur l'étape.
    */
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
 
     // Carcassonne → approche du Col de Bedos
     [45, V],
 
     // Col de Bedos
     // 3,4 km à 4,4 %
-    [3, M],
+    [4, M, 4.4],
 
     // Col de Bedos → approche du Col du Paradis
-    [11, V],
+    [10, V],
 
     // Col du Paradis
     // 5,9 km à 4,1 %
-    [6, M],
+    [7, M, 4.1],
 
     // Col du Paradis → approche du Col de Coudons
-    [29, V],
+    [28, V],
 
     // Col de Coudons
     // 10,8 km à 5,5 %
-    [11, M],
+    [12, M, 5.5],
 
     // Col de Coudons → approche du Col de Montségur
-    [35, V],
+    [34, V],
 
     // Col de Montségur
     // 6,9 km à 6,6 %
-    [7, M],
+    [8, M, 6.6],
 
     // Descente / final vers Foix
-    [35, V]
+    [34, V]
   ]),
 
   features: [
@@ -626,17 +643,17 @@ export const TOUR_2026 = {
    * montagneux afin de donner son caractère propre à
    * cette difficulté dans le moteur.
    */
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
 
-    // Lannemezan → Vic-en-Bigorre
-    [113, P],
+    // Lannemezan → pied de la Côte de Baleix
+    [132, P],
 
     // Côte de Baleix
     // 1 km à 8,8 %
-    [1, M],
+    [2, M, 8.8],
 
     // Baleix → Pau
-    [44, P]
+    [24, P]
   ]),
 
   features: [
@@ -713,42 +730,42 @@ export const TOUR_2026 = {
    * Les secteurs montagneux correspondent aux principales
    * ascensions et à la montée finale officielle.
    */
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
 
     // Pau → pied de la Côte de Loucrup
     [49, P],
 
     // Côte de Loucrup
     // 2 km à 7,1 %
-    [2, M],
+    [3, M, 7.1],
 
     // Loucrup → Côte de Mauvezin
-    [25, V],
+    [22, V],
 
     // Côte de Mauvezin
     // 3 km à 6,8 %
-    [3, M],
+    [4, M, 6.8],
 
     // Mauvezin → pied du Col d'Aspin
-    [38, V],
+    [28, V],
 
     // Col d'Aspin
     // 12 km à 6,5 %
-    [12, M],
+    [13, M, 6.5],
 
     // Aspin → pied du Tourmalet
-    [17, V],
+    [12, V],
 
     // Col du Tourmalet
     // 17,1 km à 7,3 %
-    [17, M],
+    [18, M, 7.3],
 
     // Descente du Tourmalet → pied de la montée finale
-    [4, V],
+    [19, V],
 
     // Montée finale vers Gavarnie-Gèdre
     // 18,7 km à 3,7 %
-    [19, M]
+    [18, M, 3.7]
   ]),
 
   features: [
@@ -915,10 +932,10 @@ export const TOUR_2026 = {
    * Une seule difficulté répertoriée :
    * Côte de Béguey — 1,2 km à 4,4 %, catégorie 4.
    */
-  terrain: terrainFromSegments([
-    [120, P],
-    [2, M],
-    [53, P]
+  ...terrainFromSegments([
+    [136, P],
+    [2, M, 4.4],
+    [37, P]
   ]),
 
   features: [
@@ -985,12 +1002,12 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
-    [102, P],
-    [4, M],
+  ...terrainFromSegments([
+    [99, P],
+    [5, M, 3.3],
     [34, V],
-    [3, M],
-    [37, P]
+    [3, M, 5.3],
+    [39, P]
   ]),
 
   features: [
@@ -1082,37 +1099,37 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Malemort → Côte de Naves
-    [45, P],
+    [44, P],
 
     // Côte de Naves
     // 2,3 km à 7,4 % — catégorie 3
-    [2, M],
+    [3, M, 7.4],
 
     // Côte de Naves → Suc au May
-    [26, V],
+    [23, V],
 
     // Suc au May
     // 3,8 km à 7,7 % — catégorie 2
-    [4, M],
+    [5, M, 7.7],
 
     // Suc au May → Côte de la Croix du Pey
-    [20, V],
+    [19, V],
 
     // Côte de la Croix du Pey
     // 4,8 km à 6 % — catégorie 3
-    [5, M],
+    [6, M, 6.0],
 
     // Croix du Pey → Mont Bessou
-    [31, V],
+    [29, V],
 
     // Mont Bessou
     // 0,9 km à 7,3 % — catégorie 4
-    [1, M],
+    [2, M, 7.3],
 
     // Mont Bessou → Ussel
-    [21, P]
+    [24, P]
   ]),
 
   features: [
@@ -1245,58 +1262,58 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Aurillac → Côte de Pailherols
     [65, P],
 
     // Côte de Pailherols
     // 3 km à 7,2 % — catégorie 3
-    [3, M],
+    [4, M, 7.2],
 
     // Pailherols → Col de la Griffoul
-    [23, V],
+    [22, V],
 
     // Col de la Griffoul
     // 5,9 km à 6,7 % — catégorie 2
-    [6, M],
+    [7, M, 6.7],
 
     // Griffoul → Col de Prat de Bouc
     [3, V],
 
     // Col de Prat de Bouc
     // 3,1 km à 6,5 % — catégorie 3
-    [3, M],
+    [4, M, 6.5],
 
     // Prat de Bouc → Côte de Murat
-    [10, V],
+    [9, V],
 
     // Côte de Murat
     // 5,2 km à 5,3 % — catégorie 3
-    [5, M],
+    [6, M, 5.3],
 
     // Murat → Puy Mary
-    [9, V],
+    [8, V],
 
     // Puy Mary - Pas de Peyrol
     // 7,8 km à 6 % — catégorie 1
-    [8, M],
+    [9, M, 6.0],
 
     // Puy Mary → Col de Pertus
-    [12, V],
+    [11, V],
 
     // Col de Pertus
     // 4,4 km à 8,5 % — catégorie 1
-    [4, M],
+    [5, M, 8.5],
 
     // Pertus → Col de Font de Cère
-    [9, V],
+    [8, V],
 
     // Col de Font de Cère
     // 3,1 km à 5,8 % — catégorie 3
-    [3, M],
+    [4, M, 5.8],
 
     // Derniers kilomètres vers Le Lioran
-    [4, P]
+    [2, P]
   ]),
 
   features: [
@@ -1495,20 +1512,20 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Vichy → Côte de Billonnière
     [32, P],
 
     // Côte de Billonnière
     // 1,1 km à 5,8 % — catégorie 4
-    [1, M],
+    [2, M, 5.8],
 
     // Billonnière → Côte de Billy-Chevannes
-    [89, P],
+    [88, P],
 
     // Côte de Billy-Chevannes
     // 1,5 km à 5 % — catégorie 4
-    [2, M],
+    [2, M, 5.0],
 
     // Billy-Chevannes → Nevers
     [37, P]
@@ -1600,24 +1617,27 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Approche de la Côte de Lanty
     [74, P],
 
     // Côte de Lanty
-    [2, M],
+    // 2,1 km à 4 % — catégorie 4
+    [4, M, 4.0],
 
     // Lanty → Côte de Cuzy
-    [19, P],
+    [17, P],
 
     // Côte de Cuzy
-    [3, M],
+    // 2,5 km à 4,5 % — catégorie 4
+    [4, M, 4.5],
 
     // Cuzy → Côte de Montagny-lès-Buxy
-    [59, P],
+    [58, P],
 
     // Côte de Montagny-lès-Buxy
-    [3, M],
+    // 2,7 km à 4,3 % — catégorie 4
+    [3, M, 4.3],
 
     // Montagny-lès-Buxy → Chalon-sur-Saône
     [19, P]
@@ -1751,26 +1771,26 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Dole → début du relief vosgien
     [138, P],
 
     // Approche du Col des Croix
-    [20, V],
+    [14, V],
 
     // Col des Croix
     // 5,2 km à 4,8 % — catégorie 3
-    [5, M],
+    [6, M, 4.8],
 
     // Col des Croix → pied du Ballon d'Alsace
-    [13, V],
+    [9, V],
 
     // Ballon d'Alsace
     // 8,8 km à 6,9 % — catégorie 1
-    [9, M],
+    [10, M, 6.9],
 
     // Descente du Ballon d'Alsace → Belfort
-    [21, V]
+    [29, V]
   ]),
 
   features: [
@@ -1859,34 +1879,34 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Mulhouse → pied du Grand Ballon
     [15, P],
 
     // Grand Ballon
     // 21,6 km à 4,7 % — catégorie 1
-    [22, M],
+    [23, M, 4.7],
 
     // Grand Ballon → pied du Col du Page
-    [25, V],
+    [24, V],
 
     // Col du Page
     // 9,8 km à 4,7 % — catégorie 2
-    [10, M],
+    [10, M, 4.7],
 
     // Col du Page → pied du Ballon d'Alsace
     [14, V],
 
     // Ballon d'Alsace
     // 8,9 km à 6,9 % — catégorie 1
-    [9, M],
+    [9, M, 6.9],
 
     // Ballon d'Alsace → pied du Col du Haag
     [43, V],
 
     // Col du Haag
     // 11,2 km à 7,3 % — catégorie 1
-    [12, M],
+    [12, M, 7.3],
 
     // Col du Haag → arrivée au Markstein
     [5, V]
@@ -2022,34 +2042,34 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Champagnole → Côte des Rousses
     [30, P],
 
     // Côte des Rousses
     // 6,6 km à 5,1 % — catégorie 3
-    [7, M],
+    [8, M, 5.1],
 
     // Côte des Rousses → approche du Salève
-    [94, V],
+    [93, V],
 
     // Le Salève - Col de la Croisette
     // 4,7 km à 11,2 % — catégorie 1
-    [5, M],
+    [6, M, 11.2],
 
     // Salève → Côte du Mont
-    [8, V],
+    [7, V],
 
     // Côte du Mont
     // 2,1 km à 8,3 % — catégorie 3
-    [3, M],
+    [3, M, 8.3],
 
     // Côte du Mont → pied de la montée finale
     [26, V],
 
     // Plateau de Solaison
     // 11,3 km à 9 % — catégorie HC
-    [11, M]
+    [11, M, 9.0]
   ]),
 
   features: [
@@ -2183,17 +2203,14 @@ export const TOUR_2026 = {
   // Échelle du plateau
   scale: 0.5,
 
-  terrain: terrainFromSegments([
-    // Évian-les-Bains → Thonon-les-Bains
-    // Parcours vallonné avec la Côte de Larringes
-    [10, V],
+  ...terrainFromSegments([
 
-    // Côte de Larringes
+    // Côte de Larringes (dès le départ)
     // 9,7 km à 4,3 % — catégorie 2
-    [19, M],
+    [20, M, 4.3],
 
     // Larringes → Thonon-les-Bains
-    [23, V]
+    [32, V]
   ]),
 
   features: [
@@ -2279,37 +2296,37 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Chambéry → Côte de Bassa
-    [19, P],
+    [18, P],
 
     // Côte de Bassa
     // 1,6 km à 5,5 % — catégorie 4
-    [2, M],
+    [2, M, 5.5],
 
     // Bassa → Côte de Rossillon
     [14, V],
 
     // Côte de Rossillon
     // 1,7 km à 4,6 % — catégorie 4
-    [2, M],
+    [3, M, 4.6],
 
     // Rossillon → Col des Près
-    [12, V],
+    [9, V],
 
     // Col des Près
     // 3,6 km à 6,8 % — catégorie 3
-    [4, M],
+    [5, M, 6.8],
 
     // Col des Près → Côte de Saint-Jean-d'Arvey
-    [6, V],
+    [7, V],
 
     // Côte de Saint-Jean-d'Arvey
     // 1,2 km à 5,7 % — catégorie 4
-    [1, M],
+    [3, M, 5.7],
 
     // Saint-Jean-d'Arvey → Voiron
-    [115, P]
+    [114, P]
   ]),
 
   features: [
@@ -2442,30 +2459,41 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
-    // Voiron → Côte d'Engins
-    [37, M],
+  ...terrainFromSegments([
+    // Voiron → pied de la Côte d'Engins
+    [25, P],
+
+    // Côte d'Engins
+    // 11,5 km à 5,4 % — catégorie 1
+    [13, M, 5.4],
 
     // Côte d'Engins → Côte de Monteynard
-    [55, V],
+    [45, V],
 
     // Côte de Monteynard
-    [10, M],
+    // 9,7 km à 5 % — catégorie 2
+    [10, M, 5.0],
 
     // Monteynard → Côte des Terrasses
-    [20, V],
+    [16, V],
 
     // Côte des Terrasses
-    [3, M],
+    // 3,4 km à 6,6 % — catégorie 3
+    [5, M, 6.6],
 
     // Terrasses → Côte de Saint-Léger-les-Mélèzes
     [50, V],
 
     // Côte de Saint-Léger-les-Mélèzes
-    [3, M],
+    // 2,5 km à 6,9 % — catégorie 3
+    [3, M, 6.9],
 
-    // Saint-Léger-les-Mélèzes → Orcières-Merlette
-    [7, M]
+    // Saint-Léger-les-Mélèzes → pied de la montée finale
+    [11, V],
+
+    // Arrivée — Orcières-Merlette
+    // 7,1 km à 6,7 % — catégorie 1
+    [7, M, 6.7]
   ]),
 
   features: [
@@ -2626,31 +2654,31 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
-    // Gap → Col Bayard
+  ...terrainFromSegments([
+    // Col Bayard (dès le départ)
     // 4,8 km à 7,2 % — catégorie 2
-    [5, M],
+    [6, M, 7.2],
 
     // Col Bayard → pied du Col du Noyer
-    [13, V],
+    [12, V],
 
     // Col du Noyer
     // 7,2 km à 8,5 % — catégorie 1
-    [7, M],
+    [8, M, 8.5],
 
     // Col du Noyer → pied du Col d'Ornon
-    [69, V],
+    [68, V],
 
     // Col d'Ornon
     // 5,4 km à 6,4 % — catégorie 2
-    [5, M],
+    [6, M, 6.4],
 
     // Col d'Ornon → pied de l'Alpe d'Huez
-    [15, V],
+    [14, V],
 
     // Montée finale vers l'Alpe d'Huez
     // 13,7 km à 8,1 % — catégorie HC
-    [14, M]
+    [14, M, 8.1]
   ]),
 
   features: [
@@ -2783,37 +2811,37 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Le Bourg d'Oisans → pied de la Croix de Fer
     [10, P],
 
     // Col de la Croix de Fer
     // 24 km à 5,2 % — catégorie HC
-    [24, M],
+    [25, M, 5.2],
 
     // Croix de Fer → pied du Télégraphe
-    [42, V],
+    [41, V],
 
     // Col du Télégraphe
     // 11,9 km à 7,1 % — catégorie 1
-    [12, M],
+    [13, M, 7.1],
 
     // Télégraphe → pied du Galibier
-    [5, V],
+    [4, V],
 
     // Col du Galibier
     // 17,7 km à 6,9 % — catégorie HC
-    [18, M],
+    [19, M, 6.9],
 
     // Galibier → pied du Col de Sarenne
-    [33, V],
+    [32, V],
 
     // Col de Sarenne
     // 12,8 km à 7,3 % — catégorie HC
-    [13, M],
+    [14, M, 7.3],
 
     // Sarenne → Alpe d'Huez
-    [14, V]
+    [13, V]
   ]),
 
   features: [
@@ -2947,24 +2975,27 @@ export const TOUR_2026 = {
 
   scale: 1,
 
-  terrain: terrainFromSegments([
+  ...terrainFromSegments([
     // Thoiry → première ascension de Montmartre
-    [46, P],
+    [45, P],
 
     // Côte de la Butte Montmartre
-    [1, M],
+    // 1 km à 6,5 % — catégorie 4
+    [2, M, 6.5],
 
     // Premier passage → deuxième ascension
-    [15, P],
+    [14, P],
 
     // Côte de la Butte Montmartre
-    [1, M],
+    // 1 km à 6,5 % — catégorie 4
+    [2, M, 6.5],
 
     // Deuxième passage → troisième ascension
-    [15, P],
+    [14, P],
 
     // Côte de la Butte Montmartre
-    [1, M],
+    // 1 km à 6,5 % — catégorie 4
+    [2, M, 6.5],
 
     // Dernier passage → Champs-Élysées
     [10, P]

@@ -7,6 +7,7 @@
 import { generateBoard, setStartDepth } from '../js/board.js';
 import { createRider, SPECIALIZATIONS } from '../js/rider.js';
 import * as engine from '../js/engine.js';
+import * as events from '../js/events.js';
 import { pointsForRank } from '../js/scoring.js';
 import { collectFeaturePoints } from '../js/engine.js';
 import { randomFirstName } from '../js/names.js';
@@ -43,7 +44,7 @@ export class Room {
     this.players = new Map();   // clientId -> { name, teamId }
     this.teams = [];            // { id, name, color, isAI, ownerId, ownerToken, riders: [{name, specKey}] }
     this.phase = 'lobby';       // lobby | racing | results
-    this.config = { trackLength: 40, trackWidth: 3, terrainProfile: 'random', aiCount: 0 };
+    this.config = { trackLength: 40, trackWidth: 3, terrainProfile: 'random', aiCount: 0, eventsEnabled: false, twoDice: false };
     this.hostId = null;
     this.log = [];
 
@@ -54,6 +55,9 @@ export class Room {
     this.order = [];
     this.orderIdx = 0;
     this.pendingRoll = null;
+    // id du coureur dont le début de tour a déjà été traité — protège contre
+    // un double traitement si processTurn est relancé (reconnexion).
+    this.turnStartedFor = null;
   }
 
   addLog(message) {
@@ -165,6 +169,8 @@ export class Room {
     if (config.trackWidth) c.trackWidth = Math.max(2, Math.min(5, config.trackWidth | 0));
     if (config.terrainProfile) c.terrainProfile = config.terrainProfile;
     if (config.aiCount !== undefined) c.aiCount = Math.max(0, Math.min(5, config.aiCount | 0));
+    if (config.eventsEnabled !== undefined) c.eventsEnabled = !!config.eventsEnabled;
+    if (config.twoDice !== undefined) c.twoDice = !!config.twoDice;
   }
 
   /* ============================= DÉMARRAGE ============================= */
@@ -195,7 +201,7 @@ export class Room {
     setStartDepth(this.board, this.allRiders.length);
     this.autoPlaceRiders();
 
-    this.state = engine.createRaceState(this.board, this.allRiders);
+    this.state = engine.createRaceState(this.board, this.allRiders, { twoDice: this.config.twoDice });
     this.phase = 'racing';
     this.log = [];
     this.addLog(`Grille de départ tirée au sort — ${this.allRiders.length} coureurs sur ${this.board.startDepth} ligne(s).`);
@@ -222,9 +228,13 @@ export class Room {
 
   startRound() {
     this.state.round++;
+    // La manche de la chute est terminée : on relève les coureurs tombés
+    // (le jeton ne reste couché que pendant la manche où la chute a eu lieu).
+    this.state.riders.forEach(r => { r.hasCrashed = false; });
     this.order = engine.roundOrder(this.state);
     this.orderIdx = 0;
     this.pendingRoll = null;
+    this.turnStartedFor = null;
   }
 
   /** Coureur dont c'est le tour, ou null si la manche est terminée. */
@@ -254,16 +264,73 @@ export class Room {
     const chosen = target.cells.find(c => c.column === column && c.lane === lane);
     engine.applyMove(this.state, rider, chosen ? chosen.column : target.cells[0].column, chosen ? chosen.lane : target.cells[0].lane, rollInfo);
     this.logMove(rider, rollInfo, target);
+    this.finishEventTurn(rider);
     this.orderIdx++;
     this.pendingRoll = null;
+    this.turnStartedFor = null;
   }
 
   logMove(rider, rollInfo, target) {
+    const diceLabel = rollInfo.twoDice
+      ? `dés ${rollInfo.roll} + ${rollInfo.roll2}${rollInfo.rerolled ? ' (relance)' : ''}`
+      : `dé ${rollInfo.roll}${rollInfo.rerolled ? ' (relance)' : ''}`;
     const bits = engine.rollBonusBits(rollInfo);
     const bonusStr = bits.length ? ` (${bits.join(', ')})` : '';
     const blockedStr = target.blocked ? ' — bouchon !' : '';
     const finishStr = rider.finished ? ' 🏁' : '';
-    this.addLog(`${rider.name} : dé ${rollInfo.roll}${bonusStr} → ${rollInfo.total} case(s)${blockedStr}${finishStr}`);
+    this.addLog(`${rider.name} : ${diceLabel}${bonusStr} → ${rollInfo.total} case(s)${blockedStr}${finishStr}`);
+  }
+
+  /* ============================= ÉVÉNEMENTS ============================= */
+
+  /** Prépare les effets provenant d'une manche précédente (fringale…). */
+  prepareEventEffects(rider) {
+    rider.eventCurrentPenalty = rider.eventNextPenalty || 0;
+    rider.eventNextPenalty = 0;
+  }
+
+  /** Termine la consommation des effets d'événement de la manche. */
+  finishEventTurn(rider) {
+    if (rider.eventNoBonusRounds && rider.eventNoBonusRounds > 0) {
+      rider.eventNoBonusRounds--;
+    }
+    rider.eventCurrentPenalty = 0;
+  }
+
+  /** Les événements ne se déclenchent qu'une fois tous les coureurs sur la
+   *  première case de course (colonne 0), jamais en contre-la-montre. */
+  eventsActive() {
+    return !!this.config.eventsEnabled &&
+      !this.state.isTimeTrial &&
+      this.state.riders.every(r => r.column >= 0);
+  }
+
+  /** Début de tour : prépare les effets de la manche précédente, puis lance
+   *  le d20 événement s'il est actif. Les lignes de journal sont écrites
+   *  dans le journal de la salle (envoyé aux clients). */
+  startOfTurn(rider) {
+    // Un même coureur ne subit le début de tour qu'une seule fois : la boucle
+    // de course peut être relancée (reconnexion d'un joueur) pendant qu'un
+    // tour est déjà en cours — sans cette garde, le d20 événement serait
+    // relancé une seconde fois.
+    if (this.turnStartedFor === rider.id) return null;
+    this.turnStartedFor = rider.id;
+    this.prepareEventEffects(rider);
+    if (!this.eventsActive()) return null;
+    return events.processStartOfTurn(this.state, rider, (html) => this.addLog(html));
+  }
+
+  /** Applique l'immobilisation (chaîne, chute…), journalise, consomme les
+   *  effets d'événement et avance au coureur suivant. */
+  applyImmobility(rider) {
+    if (!rider.eventCurrentImmobile) return false;
+    rider.eventCurrentImmobile = false;
+    this.addLog(`<b>${rider.name}</b> est immobilisé pour cette manche et ne se déplace pas.`);
+    this.finishEventTurn(rider);
+    this.orderIdx++;
+    this.pendingRoll = null;
+    this.turnStartedFor = null;
+    return true;
   }
 
   /** Fin de manche : aspiration + classement des arrivées, puis manche suivante ou fin de course. */

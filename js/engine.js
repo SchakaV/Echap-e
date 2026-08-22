@@ -3,6 +3,7 @@
 import { terrainAt, isSprintZone } from './board.js';
 import { featurePointsForRank } from './scoring.js';
 import { computeGroups, GROUP_SPLIT_GAP } from './groups.js';
+import { initializeRider as initializeRiderEvents } from './events.js';
 // Ré-export pour que les modules consommateurs (race-render, ui, etc.) puissent
 // appeler engine.computeGroups sans connaître le module groups.js sous-jacent.
 export { computeGroups, GROUP_SPLIT_GAP };
@@ -40,6 +41,10 @@ export function createTimeTrialState(board, riders, startOrder) {
     r.arrivedSeq = 0;
     r.teammateDraftStreak = 0;
     r.startRound = null;
+    // Remet à zéro les variables d'événement (crevaison, chute, etc.) :
+    // sans ça, un malus/immobilisation en attente à la fin d'une étape
+    // précédente polluerait le début de cette nouvelle étape/course.
+    initializeRiderEvents(r);
   });
 
   return {
@@ -106,6 +111,10 @@ export function createTeamTimeTrialState(board, riders, teamStartOrder) {
     r.arrivedSeq = 0;
     r.teammateDraftStreak = 0;
     r.startRound = null;
+    // Remet à zéro les variables d'événement (crevaison, chute, etc.) :
+    // sans ça, un malus/immobilisation en attente à la fin d'une étape
+    // précédente polluerait le début de cette nouvelle étape/course.
+    initializeRiderEvents(r);
   });
 
   return {
@@ -200,7 +209,8 @@ export function ttRoundOrder(state) {
  * démarrent dans la zone de départ (colonnes négatives) et non tous sur la
  * même case.
  */
-export function createRaceState(board, riders) {
+export function createRaceState(board, riders, options = {}) {
+  const twoDice = options.twoDice === true;
   riders.forEach(r => {
     r.draftBonus = 0;
     r.groupLeadBonus = 0;
@@ -211,6 +221,10 @@ export function createRaceState(board, riders) {
     r.arrivedSeq = 0;
     r.teammateDraftStreak = 0;
     r.startRound = null;
+    // Remet à zéro les variables d'événement (crevaison, chute, etc.) :
+    // sans ça, un malus/immobilisation en attente à la fin d'une étape
+    // précédente polluerait le début de cette nouvelle étape/course.
+    initializeRiderEvents(r);
   });
 
   return {
@@ -225,6 +239,9 @@ export function createRaceState(board, riders) {
     // Ordre de franchissement des features (sprints/cols) :
     // Map<featureIdx, Array<riderId>> dans l'ordre de passage.
     featureCrossings: new Map(),
+    // Mode « Grand Tour Rapide » : 2 dés de déplacement au lieu d'un seul
+    // (ignoré en contre-la-montre, voir computeRoll).
+    twoDice,
   };
 }
 
@@ -258,12 +275,11 @@ function nearestRivalGapBehind(state, rider) {
  */
 export function computeRoll(state, rider) {
   let roll = roll1d6();
+  let roll2 = null;
   let rerolled = false;
 
-  if (rider.spec.rerollOnOne && roll === 1) {
-    roll = roll1d6();
-    rerolled = true;
-  }
+  const twoDice = !!state.twoDice && !state.isTimeTrial;
+  if (twoDice) roll2 = roll1d6();
 
   const terrain = terrainAt(state.board, rider.column);
   const terrainBonus = rider.spec.terrainBonus[terrain] || 0;
@@ -318,30 +334,47 @@ export function computeRoll(state, rider) {
   const groupBonusName = rider.groupBonusName || null;
   
   const draftBonus = rider.draftBonus || 0;
+  const eventPenalty = rider.eventCurrentPenalty || 0;
 
   // Protection contre le vent :
   // à partir de 2 manches d'affilée dans la roue d'un coéquipier,
   // un bonus supplémentaire de +1 s'ajoute.
-  const windBonus =
-    (rider.teammateDraftStreak || 0) >= 2 ? 1 : 0;
+  const windBonus = (rider.teammateDraftStreak || 0) >= 2 ? 1 : 0;
+
+  // « Perte de tous les bonus » (chute, déshydratation) : les variables
+  // ci-dessous sont les versions RÉELLEMENT appliquées de chaque bonus —
+  // ramenées à 0 tant que rider.eventNoBonusRounds > 0. Ce sont ELLES
+  // (et non les variables brutes calculées plus haut) qui doivent entrer
+  // dans le total du jet ; les valeurs brutes ne servent plus qu'à savoir
+  // qu'un bonus existait avant d'être neutralisé par l'événement.
+  const noEventBonuses = (rider.eventNoBonusRounds || 0) > 0;
+  const effectiveTerrainBonus = noEventBonuses ? 0 : terrainBonus;
+  const effectiveBreakawayBonus = noEventBonuses ? 0 : breakawayBonus;
+  const effectiveTTPlaineBonus = noEventBonuses ? 0 : ttPlaineBonus;
+  const effectiveDraftBonus = noEventBonuses ? 0 : draftBonus;
+  const effectiveWindBonus = noEventBonuses ? 0 : windBonus;
+  const effectiveGroupLeadBonus = noEventBonuses ? 0 : groupLeadBonus;
+
+  const diceTotal = twoDice ? roll + roll2 : roll;
 
   const baseTotal = Math.max(
     1,
-    roll +
-    terrainBonus +
-    breakawayBonus +
-    ttPlaineBonus +
-    draftBonus +
-    windBonus +
-    groupLeadBonus
+    diceTotal +
+      effectiveTerrainBonus +
+      effectiveBreakawayBonus +
+      effectiveTTPlaineBonus +
+      effectiveDraftBonus +
+      effectiveWindBonus +
+      effectiveGroupLeadBonus +
+      eventPenalty
   );
 
   // Sprint final :
   // si le jet permet d'atteindre la zone de sprint, le sprinteur
-  // bénéficie de son bonus spécifique.
+  // bénéficie de son bonus spécifique — sauf lui aussi pendant une perte
+  // de bonus (chute, déshydratation).
   let sprintBonus = 0;
-
-  if (rider.spec.sprintBonus) {
+  if (!noEventBonuses && rider.spec.sprintBonus) {
     const preview = resolveTarget(
       state,
       rider,
@@ -366,30 +399,40 @@ export function computeRoll(state, rider) {
 
   return {
     roll,
+    roll2,
     rerolled,
-
+    dice: twoDice ? [roll, roll2] : [roll],
+    twoDice,
     terrain,
-    terrainBonus,
+    // Les champs de bonus renvoyés sont les valeurs EFFECTIVEMENT
+    // appliquées (0 pendant une perte de bonus) : le détail affiché au
+    // joueur (breakdownText / rollBonusBits) doit toujours correspondre
+    // exactement à ce qui a réellement compté dans le total.
+    terrainBonus: effectiveTerrainBonus,
 
     sprintBonus,
 
     // Bonus de baroudeur en échappée.
-    breakawayBonus,
+    breakawayBonus: effectiveBreakawayBonus,
     inBreakaway,
 
     // Bonus CLM.
-    ttPlaineBonus,
+    ttPlaineBonus: effectiveTTPlaineBonus,
 
     // Bonus aspiration.
-    draftBonus,
-    windBonus,
+    draftBonus: effectiveDraftBonus,
+    windBonus: effectiveWindBonus,
 
     // Bonus groupe.
-    groupLeadBonus,
-    leadingGroup: groupLeadBonus > 0,
+    groupLeadBonus: effectiveGroupLeadBonus,
+    leadingGroup: effectiveGroupLeadBonus > 0,
 
     groupBonusName,
     ridesInGroupBonus: groupBonusName === 'roule en groupe',
+
+    // Informations événement, pour affichage (breakdown du dé + popup).
+    eventPenalty,
+    noEventBonuses,
 
     total,
   };
@@ -507,6 +550,16 @@ export function resolveTarget(state, rider, total) {
     frontier = next;
   }
 
+  // Recalcule le chemin le plus court vers chaque cible (au lieu du chemin
+  // d'exploration qui pouvait zigzaguer inutilement pour l'animation).
+  const finalCells = Array.from(bestByLane.values());
+
+  for (const cell of finalCells) {
+    // On écrase le chemin complexe (qui utilisait tous les points) par le
+    // chemin le plus direct trouvé par notre utilitaire.
+    cell.path = getShortestPath(state, rider.column, rider.lane, cell.column, cell.lane);
+  }
+
   let cells = Array.from(bestByLane.values());
   const finishing = cells.some(c => c.column >= finishColumn);
 
@@ -532,9 +585,55 @@ export function resolveTarget(state, rider, total) {
   };
 }
 
-/**
- * Applique le déplacement d'un coureur vers la case choisie (column, lane).
- */
+// Fonction utilitaire pour trouver le chemin le plus direct et propre
+function getShortestPath(state, startCol, startLane, targetCol, targetLane) {
+  const finishColumn = state.finishColumn;
+  const isFree = (c, l) => isFreeCell(state.occupancy, c, l);
+  
+  const queue = [{ column: startCol, lane: startLane, path: [] }];
+  const visited = new Set([`${startCol},${startLane}`]);
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    // Si on a trouvé la case d'arrivée, on retourne le chemin direct
+    if (current.column === targetCol && current.lane === targetLane) {
+      return current.path;
+    }
+
+    const diag = diagonalColumnDelta(current.lane);
+    
+    // Ordre de préférence : Tout droit, puis diagonales (pour une animation propre)
+    const moves = [
+      { c: current.column + 1, l: current.lane },
+      { c: current.column + diag, l: current.lane - 1 },
+      { c: current.column + diag, l: current.lane + 1 }
+    ];
+
+    for (const move of moves) {
+      // Hors piste
+      if (move.l < 0 || move.l >= state.board.width) continue;
+      
+      const finishing = move.c >= finishColumn;
+      // Case occupée (sauf si on franchit la ligne d'arrivée)
+      if (!finishing && !isFree(move.c, move.l)) continue;
+      
+      const col = finishing ? finishColumn : move.c;
+      const key = `${col},${move.l}`;
+
+      if (!visited.has(key)) {
+        visited.add(key);
+        queue.push({
+          column: col,
+          lane: move.l,
+          path: [...current.path, { column: col, lane: move.l }]
+        });
+      }
+    }
+  }
+  return [];
+}
+
 /**
  * Enregistre le franchissement des features par un coureur qui vient de
  * passer de startColumn à column. Une feature est franchie quand la
@@ -651,7 +750,7 @@ export function updateDraftBonuses(state) {
     }
     rider.teammateDraftStreak = behindTeammate ? (rider.teammateDraftStreak || 0) + 1 : 0;
 
-    // 2. NOUVEAU : Calcul des bonus de groupe pour la MANCHE SUIVANTE
+    // 2. Bonus de groupe pour la MANCHE SUIVANTE
     rider.groupLeadBonus = 0;
     rider.groupBonusName = null;
 
@@ -709,17 +808,32 @@ export function rollBonusBits(rollInfo) {
   if (rollInfo.ttPlaineBonus) {
     bits.push(`plaine +${rollInfo.ttPlaineBonus}`);
   }
-  if (rollInfo.inBreakaway) {
+  // Les bonus ci-dessous (breakawayBonus, groupLeadBonus) valent déjà 0
+  // pendant une perte de bonus événementielle (voir computeRoll), mais
+  // inBreakaway/groupBonusName restent vrais indépendamment (ils décrivent
+  // la position du coureur, pas si le bonus s'applique) : on ne pousse donc
+  // le libellé que si le bonus est réellement non nul.
+  if (rollInfo.inBreakaway && rollInfo.breakawayBonus) {
     bits.push(`dirige l'échappée +${rollInfo.breakawayBonus}`);
   }
+
   if (rollInfo.draftBonus) {
     bits.push(`aspiration +${rollInfo.draftBonus}`);
   }
   if (rollInfo.windBonus) {
     bits.push(`protection du vent +${rollInfo.windBonus}`);
   }
-  if (rollInfo.groupBonusName) {
+  if (rollInfo.groupBonusName && rollInfo.groupLeadBonus) {
     bits.push(`${rollInfo.groupBonusName} +${rollInfo.groupLeadBonus}`);
+  }
+  // Perte de tous les bonus (chute, déshydratation) : le rend explicite
+  // dans le détail du jet plutôt que de laisser deviner leur absence.
+  if (rollInfo.noEventBonuses) {
+    bits.push(`aucun bonus (événement)`);
+  }
+  // Malus du jet en cours (crevaison -2, chaîne/bris -1, fringale -2…).
+  if (rollInfo.eventPenalty) {
+    bits.push(`événement ${rollInfo.eventPenalty}`);
   }
 
   return bits;

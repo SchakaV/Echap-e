@@ -63,8 +63,6 @@ export function createRider({ name, teamId, teamColor, specKey, isAI }) {
     finished: false,
     finishRound: null,
     finishRank: null,
-    // manche à laquelle le coureur a atteint sa case actuelle — sert à
-    // départager l'ordre de jeu entre coureurs à égalité de position.
     // manche à laquelle le coureur a atteint sa case actuelle (indicatif) —
     // le vrai départage de l'ordre de jeu se fait via arrivedSeq ci-dessous.
     arrivedRound: 0,

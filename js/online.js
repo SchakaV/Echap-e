@@ -7,6 +7,7 @@
 import { NetClient } from './net.js';
 import { SPECIALIZATIONS } from './rider.js';
 import { TEAM_COLORS } from './colors.js';
+import * as engine from './engine.js';
 import * as ui from './ui.js';
 
 const $ = sel => document.querySelector(sel);
@@ -139,6 +140,9 @@ function bindLobbyScreen() {
   ['online-track-length', 'online-track-width', 'online-ai-count'].forEach(id => {
     $(`#${id}`).addEventListener('input', sendConfigFromForm);
   });
+  ['online-events-enabled', 'online-two-dice'].forEach(id => {
+    $(`#${id}`).addEventListener('change', sendConfigFromForm);
+  });
   $('#online-terrain-profile').addEventListener('change', sendConfigFromForm);
   $('#btn-online-start').addEventListener('click', () => {
     Net.client && Net.client.send({ type: 'startRace' });
@@ -157,6 +161,8 @@ function sendConfigFromForm() {
       trackWidth: parseInt($('#online-track-width').value, 10),
       terrainProfile: $('#online-terrain-profile').value,
       aiCount: parseInt($('#online-ai-count').value, 10),
+      eventsEnabled: $('#online-events-enabled').checked,
+      twoDice: $('#online-two-dice').checked,
     },
   });
 }
@@ -233,6 +239,8 @@ function renderLobby() {
     $('#online-width-val').textContent = Net.room.config.trackWidth;
     $('#online-ai-count').value = Net.room.config.aiCount;
     $('#online-ai-val').textContent = Net.room.config.aiCount;
+    $('#online-events-enabled').checked = !!Net.room.config.eventsEnabled;
+    $('#online-two-dice').checked = !!Net.room.config.twoDice;
   } else {
     hostConfig.style.display = 'none';
     waiting.style.display = 'block';
@@ -311,6 +319,8 @@ function renderRace() {
       Net.client.send({ type: 'rollDice' });
     };
     $('#online-die-face').textContent = '';
+    const die2 = $('#online-die-face-2');
+    if (die2) die2.classList.add('hidden');
     $('#online-dice-breakdown').textContent = '';
   } else {
     btn.style.display = 'none';
@@ -318,14 +328,22 @@ function renderRace() {
 }
 
 function breakdownText(rollInfo) {
-  const bits = [`dé ${rollInfo.roll}${rollInfo.rerolled ? ' (relance)' : ''}`];
-  if (rollInfo.terrainBonus) bits.push(`terrain ${rollInfo.terrainBonus > 0 ? '+' : ''}${rollInfo.terrainBonus}`);
-  if (rollInfo.sprintBonus) bits.push(`sprint +${rollInfo.sprintBonus}`);
-  if (rollInfo.ttPlaineBonus) bits.push(`plaine +${rollInfo.ttPlaineBonus}`);
-  if (rollInfo.inBreakaway) bits.push(`échappée +${rollInfo.breakawayBonus}`);
-  if (rollInfo.draftBonus) bits.push(`aspiration +${rollInfo.draftBonus}`);
-  if (rollInfo.windBonus) bits.push(`protection du vent +${rollInfo.windBonus}`);
+  const diceLabel = rollInfo.twoDice
+    ? `dés ${rollInfo.roll} + ${rollInfo.roll2}${rollInfo.rerolled ? ' (relance)' : ''}`
+    : `dé ${rollInfo.roll}${rollInfo.rerolled ? ' (relance)' : ''}`;
+  const bits = [diceLabel, ...engine.rollBonusBits(rollInfo)];
   return `${bits.join(' · ')} = <b>${rollInfo.total}</b> case(s).`;
+}
+
+/** Complète le détail du dé avec la portée réelle des cases proposées
+ *  (colonne la plus avancée atteignable), pour comprendre immédiatement
+ *  pourquoi des cases plus loin ne sont pas cliquables. */
+function reachHint(cells, blocked, finishing) {
+  if (!cells || !cells.length) return '';
+  const maxColumn = Math.max(...cells.map(c => c.column));
+  if (finishing) return ' \u2014 la ligne d\u2019arriv\u00e9e est atteignable !';
+  if (blocked) return ` \u2014 bouchon : au plus colonne ${maxColumn}.`;
+  return ` \u2014 port\u00e9e max : colonne ${maxColumn}.`;
 }
 
 function onDiceRolled() {
@@ -337,23 +355,32 @@ function onDiceRolled() {
 
   const mine = myTeam() && rider.teamId === myTeam().id && !rider.isAI;
 
-  ui.animateDice($('#online-die-face'), rollInfo.roll, {
-    duration: mine ? 650 : 400,
-    onDone: () => {
-      if (mine) {
-        $('#online-dice-breakdown').innerHTML = breakdownText(rollInfo) + ' Cliquez une case en surbrillance.';
-        const viewState = { board: room.board, riders: room.riders, finishColumn: room.finishColumn };
-        ui.renderBoard($('#online-board'), viewState, {
-          highlightCells: cells,
-          activeCell: { column: rider.column, lane: rider.lane },
-          onCellClick: (column, lane) => {
-            $('#online-dice-breakdown').textContent = '';
-            Net.client.send({ type: 'chooseCell', column, lane });
-          },
-        });
-      }
-    },
-  });
+  const die2El = $('#online-die-face-2');
+  const onDone = () => {
+    if (!mine) return;
+    $('#online-dice-breakdown').innerHTML =
+      breakdownText(rollInfo) +
+      ' Cliquez une case en surbrillance.' +
+      reachHint(cells, Net.pendingDice.blocked, Net.pendingDice.finishing);
+    const viewState = { board: room.board, riders: room.riders, finishColumn: room.finishColumn };
+    ui.renderBoard($('#online-board'), viewState, {
+      highlightCells: cells,
+      activeCell: { column: rider.column, lane: rider.lane },
+      onCellClick: (column, lane) => {
+        $('#online-dice-breakdown').textContent = '';
+        Net.client.send({ type: 'chooseCell', column, lane });
+      },
+    });
+  };
+
+  if (rollInfo.twoDice && die2El) {
+    die2El.textContent = '';
+    die2El.classList.remove('hidden');
+    ui.animateTwoDice($('#online-die-face'), die2El, rollInfo.roll, rollInfo.roll2, { duration: mine ? 650 : 400, onDone });
+  } else {
+    if (die2El) die2El.classList.add('hidden');
+    ui.animateDice($('#online-die-face'), rollInfo.roll, { duration: mine ? 650 : 400, onDone });
+  }
 }
 
 function renderResults() {

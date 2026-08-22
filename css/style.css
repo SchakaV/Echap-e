@@ -67,6 +67,19 @@ body{
 .field{display:flex; flex-direction:column; gap:6px; margin-bottom:16px; font-size:13px; color:var(--chalk-dim);}
 .field span{font-weight:600; color:var(--chalk);}
 .field small{color:var(--chalk-dim); font-weight:400; line-height:1.4;}
+.checkbox-row{
+  display:flex; align-items:flex-start; gap:10px;
+  background: var(--asphalt-2);
+  border:1px solid var(--line);
+  border-radius: var(--radius);
+  padding:14px 18px;
+  margin-bottom:20px;
+  font-size:13px; color:var(--chalk-dim);
+}
+.checkbox-row input[type=checkbox]{accent-color: var(--maillot-jaune); margin-top:3px;}
+.checkbox-row span{display:flex; flex-direction:column; gap:2px;}
+.checkbox-row strong{color:var(--chalk); font-size:14px;}
+.checkbox-row small{color:var(--chalk-dim); font-weight:400; line-height:1.4;}
 select, input[type=number]{
   background: var(--asphalt);
   border:1px solid var(--line);
@@ -272,6 +285,42 @@ input[type=range]{accent-color: var(--maillot-jaune);}
 }
 .toast.show{opacity:1; transform:translateY(0);}
 
+/* ---------- Pop-up bloquante d'événement de course ---------- */
+#event-popup-overlay{
+  position:fixed; inset:0; z-index:200;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(10,10,12,.72);
+  opacity:0; pointer-events:none;
+  transition: opacity .2s ease;
+  padding:20px;
+}
+#event-popup-overlay:empty{display:none;}
+#event-popup-overlay.visible{opacity:1; pointer-events:auto;}
+.event-popup{
+  background: var(--asphalt-2);
+  border:1px solid var(--polka-red);
+  border-radius: var(--radius);
+  padding:28px 30px 24px;
+  max-width:380px;
+  width:100%;
+  text-align:center;
+  box-shadow:0 12px 40px rgba(0,0,0,.55);
+  transform: translateY(-8px) scale(.97);
+  transition: transform .2s ease;
+}
+#event-popup-overlay.visible .event-popup{transform:translateY(0) scale(1);}
+.event-popup-icon{font-size:40px; line-height:1; margin-bottom:8px;}
+.event-popup-title{
+  font-family:var(--font-display); letter-spacing:.03em; font-size:24px;
+  margin:0 0 14px; color: var(--polka-red);
+}
+.event-popup-line{
+  font-size:14px; color:var(--chalk); line-height:1.5;
+  margin:0 0 10px;
+}
+.event-popup-line:last-of-type{margin-bottom:20px;}
+.event-popup .event-popup-ok{display:block; margin:0 auto; min-width:110px;}
+
 /* ---------- Board — cases en forme de pavé (rectangles allongés dans le
    sens de la course), une voie sur deux décalée d'une demi-case façon
    pavé autobloquant, pour bien montrer le sens d'avancement. ---------- */
@@ -301,6 +350,10 @@ input[type=range]{accent-color: var(--maillot-jaune);}
    enfants). Sans ce deuxième contre-rotate, un coureur sur une case en pente
    apparaîtrait penché comme le bitume au lieu de rester droit. */
 .rider-token{ transform: translateY(-16px) rotateX(-48deg) rotateY(calc(var(--slope, 0deg) * -1)) translateZ(20px); }
+/* Coureur tombé (chute) : on retire le contre-rotate 3D et le surélévement,
+   le jeton est couché à plat, centré dans sa case, pendant toute la manche
+   de la chute. */
+.rider-token.crashed{ transform: none; }
 .board-row{display:flex; gap:4px; transform-style: preserve-3d;}
 /* Élévation : chaque colonne est surélevée en Z selon l'altitude de la case,
    ET inclinée (rotateY) vers l'altitude de la case suivante — pour un effet
@@ -486,6 +539,17 @@ input[type=range]{accent-color: var(--maillot-jaune);}
   color: var(--asphalt);
   border-radius:10px;
   box-shadow: 0 3px 0 rgba(0,0,0,.3);
+}
+.die.hidden{display:none;}
+.dice-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.dice-container .hidden {
+  display: none;
 }
 .die.rolling{ animation: shake .06s linear infinite; }
 @keyframes shake{

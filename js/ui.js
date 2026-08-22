@@ -3,24 +3,9 @@
 import { SPECIALIZATIONS } from './rider.js';
 import { randomFirstName } from './names.js';
 import { TEAM_COLORS } from './colors.js';
+import { compareYellow } from './state.js';
 
 export { TEAM_COLORS };
-
-/** Compare deux entrées de classement général au temps (maillot jaune) : le
- *  plus petit retard cumulé gagne ; à égalité, on compare les classements
- *  d'étape un par un pour départager — mêmes règles que dans main.js. */
-function compareYellow(entryA, entryB) {
-  const ya = entryA.yellowPoints || 0;
-  const yb = entryB.yellowPoints || 0;
-  if (ya !== yb) return ya - yb;
-  const ra = entryA.stageRanks || [];
-  const rb = entryB.stageRanks || [];
-  const n = Math.min(ra.length, rb.length);
-  for (let i = 0; i < n; i++) {
-    if (ra[i] !== rb[i]) return ra[i] - rb[i];
-  }
-  return 0;
-}
 
 /** Formate un écart en secondes (maillot jaune) en heure/minute/seconde :
  *  les minutes sont notées avec une apostrophe simple (') et les secondes
@@ -360,6 +345,7 @@ function updateRiderTokens(cache, riders, jerseys) {
     }
 
     let tokenCls = 'rider-token';
+    if (rider.hasCrashed) tokenCls += ' crashed';
     let jerseyBadge = '';
     if (jerseys && jerseys.yellow === rider.id) { tokenCls += ' jersey-yellow'; jerseyBadge = '🟡'; }
     else if (jerseys && jerseys.green === rider.id) { tokenCls += ' jersey-green'; jerseyBadge = '🟢'; }
@@ -558,6 +544,49 @@ export function showToast(message, { duration = 2200 } = {}) {
   }, duration);
 }
 
+/* ============================= POPUP ÉVÉNEMENT ============================= */
+
+/**
+ * Affiche une pop-up bloquante au centre de l'écran pour signaler au joueur
+ * humain qu'un événement de course vient de toucher son coureur (crevaison,
+ * chute, fringale…), avec sa conséquence. Le jeu ne doit reprendre qu'une
+ * fois que le joueur a cliqué sur OK — voir le paramètre `onClose`, appelé
+ * uniquement à ce moment-là (jamais automatiquement).
+ *
+ * opts:
+ *   - icon  : emoji de l'événement (ex. '💥')
+ *   - title : titre affiché (ex. "Julien — Chute")
+ *   - lines : tableau de lignes HTML à afficher (jet, conséquence, etc.)
+ *   - onClose : callback appelé au clic sur OK
+ */
+export function showEventPopup({ icon = '⚠️', title = 'Événement', lines = [], onClose } = {}) {
+  let overlay = document.getElementById('event-popup-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'event-popup-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = `
+    <div class="event-popup">
+      <div class="event-popup-icon">${icon}</div>
+      <h3 class="event-popup-title">${title}</h3>
+      ${lines.map(l => `<p class="event-popup-line">${l}</p>`).join('')}
+      <button type="button" class="btn btn-primary event-popup-ok" id="event-popup-ok">OK</button>
+    </div>
+  `;
+
+  // Affichage différé d'une frame pour laisser la transition CSS s'animer.
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  const close = () => {
+    overlay.classList.remove('visible');
+    onClose && onClose();
+  };
+
+  overlay.querySelector('#event-popup-ok').addEventListener('click', close, { once: true });
+}
+
 export function appendLog(logEl, html) {
   const div = document.createElement('div');
   div.innerHTML = html;
@@ -583,6 +612,32 @@ export function animateDice(faceEl, finalValue, { duration = 650, onDone } = {})
     setTimeout(tick, 60);
   };
   faceEl.classList.add('rolling');
+  tick();
+}
+
+/** Anime deux dés simultanément. */
+export function animateTwoDice(faceEl1, faceEl2, finalValue1, finalValue2, { duration = 650, onDone } = {}) {
+  const start = Date.now();
+
+  faceEl1.classList.add('rolling');
+  faceEl2.classList.add('rolling');
+
+  function tick() {
+    const elapsed = Date.now() - start;
+    if (elapsed >= duration) {
+      faceEl1.textContent = DICE_FACES[finalValue1];
+      faceEl2.textContent = DICE_FACES[finalValue2];
+      faceEl1.classList.remove('rolling');
+      faceEl2.classList.remove('rolling');
+      if (onDone) onDone();
+      return;
+    }
+
+    faceEl1.textContent = DICE_FACES[1 + Math.floor(Math.random() * 6)];
+    faceEl2.textContent = DICE_FACES[1 + Math.floor(Math.random() * 6)];
+    setTimeout(tick, 60);
+  }
+
   tick();
 }
 
