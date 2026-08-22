@@ -77,45 +77,35 @@ function generateTerrainSequence(length, profile) {
  * profil doit rester stable d'un rendu à l'autre pour la perspective 3D).
  *
  * Principe : on parcourt le terrain case par case en cumulant un gain
- * d'altitude. La pente (gain par case) dépend du terrain et, quand une
- * feature "climb" couvre la case, de son gradient réel.
+ * d'altitude. La pente dépend du type de case :
  *
- *   - plaine : gain nul (route plate)
- *   - vallon : petites ondulations déterministes (sinusoïde basée sur la
- *     colonne, pour éviter un profil plat sans monter indéfiniment)
- *   - montagne : montée franche ; on utilise le gradient du climb couvrant
- *     la case si présent, sinon un gradient par défaut (6 %).
+ *   - montagne : montée franche ; on utilise le gradient réel rattaché au
+ *     segment de terrain (tableau `gradients`, en %), sinon 6 % par défaut ;
+ *   - vallon : retour progressif vers le niveau 0 (descente après un col),
+ *     avec une légère ondulation déterministe (sinusoïde basée sur la
+ *     colonne) ;
+ *   - plaine : retour progressif vers le niveau 0 (descente douce).
  *
- * Après chaque segment de montagne, l'altitude redescent progressivement
- * vers la plaine (on ne fait pas que monter).
+ * Ainsi le plateau ne grimpe pas indéfiniment : après chaque ascension,
+ * l'altitude redescend progressivement jusqu'au niveau 0 dans les sections
+ * vallon ou plaine, sans jamais dépasser la hauteur du dernier col.
  */
-export function computeElevation(terrain, features = []) {
+export function computeElevation(terrain, gradients = []) {
   const n = terrain.length;
   const elevation = new Array(n).fill(0);
-
-  // Index des climbs par case couverte, pour récupérer le gradient réel.
-  const climbByCol = new Map();
-  for (const f of features) {
-    if (f.type !== 'climb') continue;
-    const start = f.columnStart || 0;
-    const end = f.columnEnd || start;
-    for (let c = start; c <= end && c < n; c++) {
-      climbByCol.set(c, f);
-    }
-  }
 
   let alt = 0;
   for (let c = 0; c < n; c++) {
     const t = terrain[c];
     if (t === TERRAIN.MONTAGNE) {
-      const climb = climbByCol.get(c);
       // gradient en % ; gain par case ≈ gradient (1 case = 1 km en étape
       // en ligne), on l'amplifie un peu pour la lisibilité visuelle.
-      const g = climb && climb.gradient ? climb.gradient : 6;
+      const g = gradients[c] || 6;
       alt += g * 1.2;
     } else if (t === TERRAIN.VALLON) {
-      // Ondulation déterministe : amplitude ~15 m, période ~8 cases.
-      alt += Math.sin(c * 0.8) * 8;
+      // Descente progressive vers 0 + ondulation déterministe (amplitude
+      // ~8 m, période ~8 cases) pour garder un profil vivant.
+      alt = alt * 0.92 + Math.sin(c * 0.8) * 8;
     } else {
       // Plaine : retour progressif vers 0 (descente douce après un col).
       alt *= 0.85;
@@ -133,15 +123,10 @@ export function computeElevation(terrain, features = []) {
  */
 export function generateBoard({ length = 40, width = 3, profile = 'random' } = {}) {
   const terrain = generateTerrainSequence(length, profile);
-  const elevation = computeElevation(terrain, []);
+  const elevation = computeElevation(terrain);
   return { length, width, terrain, elevation, profile, startDepth: 1 };
 }
 
-/**
- * Définit la profondeur de la zone de départ (en cases, avant la ligne de
- * départ à la colonne 0) en fonction du nombre total de coureurs à placer,
- * pour qu'il y ait toujours assez de cases libres pour tout le monde.
- */
 /**
  * Définit la profondeur de la zone de départ (en cases, avant la ligne de
  * départ à la colonne 0) en fonction du nombre total de coureurs à placer,
@@ -182,11 +167,14 @@ export function createFixedBoard(stage) {
     );
   }
 
+  // Le terrain des étapes du Tour porte ses gradients : chaque segment
+  // montagne [count, M, gradient] transporte le pourcentage réel de la pente,
+  // posé par terrainFromSegments dans stage.gradients (voir tour2026.js).
   return {
     length: stage.length,
     width: stage.width,
     terrain: [...stage.terrain],
-    elevation: computeElevation(stage.terrain, stage.features || []),
+    elevation: computeElevation(stage.terrain, stage.gradients || []),
     profile: stage.type,
     startDepth: 1,
 

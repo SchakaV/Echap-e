@@ -9,23 +9,11 @@ import { TOUR_2026, getTourStage } from './tour2026.js';
 import { createRider } from './rider.js';
 import * as engine from './engine.js';
 import * as ui from './ui.js';
-import { App } from './state.js';
+import { App, compareYellow } from './state.js';
 import { nav } from './nav.js';
 import { renderRaceBoard, renderRosterNow } from './race-render.js';
 import { startRound } from './race-loop.js';
 
-export function compareYellow(entryA, entryB) {
-  const ya = entryA.yellowPoints || 0;
-  const yb = entryB.yellowPoints || 0;
-  if (ya !== yb) return ya - yb;
-  const ra = entryA.stageRanks || [];
-  const rb = entryB.stageRanks || [];
-  const n = Math.min(ra.length, rb.length);
-  for (let i = 0; i < n; i++) {
-    if (ra[i] !== rb[i]) return ra[i] - rb[i];
-  }
-  return 0;
-}
 export function computeJerseys() {
   if (App.totalStages <= 1 || App.stageIndex < 1) {
     App.jerseys = null;
@@ -202,7 +190,6 @@ export function startStage() {
   const isTeamTT = isTT && isCurrentStageTeamTT();
   // Largeur fixée à 3 voies pour un contre-la-montre, quelle que soit la
   // largeur choisie pour les autres étapes.
-  
 
   let board;
   let tourStage = null;
@@ -235,21 +222,15 @@ export function startStage() {
   }
 
   const stageTitle =
-  App.config.raceCategory === 'tour2026'
-    ? `Tour de France 2026 — Étape ${tourStage.number}/${TOUR_2026.totalStages}`
-    : (
-        App.totalStages > 1
-          ? `Étape ${App.stageIndex + 1}/${App.totalStages}`
-          : 'Course'
-      );
+    App.config.raceCategory === 'tour2026'
+      ? `Tour de France 2026 — Étape ${tourStage.number}/${TOUR_2026.totalStages}`
+      : (App.totalStages > 1 ? `Étape ${App.stageIndex + 1}/${App.totalStages}` : 'Course');
 
-  $('#stage-label').textContent =
-    stageTitle +
-    (isTT ? ' — Contre-la-montre' : isTT ? ' — Contre-la-montre' : '');
+  $('#stage-label').textContent = stageTitle + (isTT ? ' — Contre-la-montre' : '');
   $('#log-content').innerHTML = '';
   $('#btn-sim-race').disabled = false;
 
-  if (isTeamTT) {                                    // ← bloc entier ajouté, avant le `if (isTT)` existant
+  if (isTeamTT) {
     board.startDepth = Math.max(1, ...App.teams.map(t => t.riderObjs.length));
     const teamStartOrder = computeTeamTTStartOrder();
     const state = engine.createTeamTimeTrialState(board, App.allRiders, teamStartOrder);
@@ -289,7 +270,7 @@ export function startStage() {
   setStartDepth(board, App.allRiders.length);
   autoPlaceRiders(board);
 
-  const state = engine.createRaceState(board, App.allRiders);
+  const state = engine.createRaceState(board, App.allRiders, { twoDice: !!App.config.twoDice });
   App.runtime = { state, order: [], orderIdx: 0, isTimeTrial: false };
   computeJerseys();
 

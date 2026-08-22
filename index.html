@@ -117,8 +117,7 @@
   <!-- ===================== ÉCRAN CONFIGURATION COURSE ===================== -->
   <section id="screen-race-setup" class="screen">
     <header class="screen-header">
-      <button class="btn btn-ghost" data-nav="screen-home">← Retour</button>
-      <h2>Configurer la course</h2>
+      <button class="btn btn-ghost" data-nav="screen-home">← Retour</button>     
     </header>
 
     <div class="setup-grid">
@@ -205,6 +204,29 @@
         </label>
       </div>
     </div>
+  
+  <h2>Configurer la course</h2>
+    <label class="checkbox-row">
+      <input type="checkbox" id="enable-events">
+      <span>
+        <strong>Événements de course</strong>
+        <small>
+          Des incidents peuvent survenir pendant la course.
+        </small>
+      </span>
+    </label>
+  
+    <div id="two-dice-field" style="display: none;">
+      <label class="checkbox-row" for="two-dice-checkbox">
+        <input type="checkbox" id="two-dice-checkbox">
+        <span>
+          <strong>Mode Grand Tour Rapide (2 dés)</strong>
+          <small>
+            Pour les courses longues, vous pouvez lancer 2 dés de déplacement au lieu d'un seul
+          </small>
+        </span>
+      </label>
+    </div>
 
     <button class="btn btn-primary btn-lg" id="btn-go-teams">Composer les équipes →</button>
   </section>
@@ -273,9 +295,15 @@
         <span id="turn-text">—</span>
       </div>
       <div class="dice-area">
+        <div class="dice-container">
+
         <div class="die" id="die-face"></div>
-        <div id="dice-breakdown"></div>
+
+        <div class="die hidden" id="die-face-2"></div>
+
+        </div>
         <button class="btn btn-primary" id="btn-roll-dice">Lancer le dé</button>
+        <div id="dice-breakdown"></div>
       </div>
     </div>
 

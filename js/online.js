@@ -328,6 +328,17 @@ function breakdownText(rollInfo) {
   return `${bits.join(' · ')} = <b>${rollInfo.total}</b> case(s).`;
 }
 
+/** Complète le détail du dé avec la portée réelle des cases proposées
+ *  (colonne la plus avancée atteignable), pour comprendre immédiatement
+ *  pourquoi des cases plus loin ne sont pas cliquables. */
+function reachHint(cells, blocked, finishing) {
+  if (!cells || !cells.length) return '';
+  const maxColumn = Math.max(...cells.map(c => c.column));
+  if (finishing) return ' \u2014 la ligne d\u2019arriv\u00e9e est atteignable !';
+  if (blocked) return ` \u2014 bouchon : au plus colonne ${maxColumn}.`;
+  return ` \u2014 port\u00e9e max : colonne ${maxColumn}.`;
+}
+
 function onDiceRolled() {
   const room = Net.room;
   if (!room) return;
@@ -341,7 +352,10 @@ function onDiceRolled() {
     duration: mine ? 650 : 400,
     onDone: () => {
       if (mine) {
-        $('#online-dice-breakdown').innerHTML = breakdownText(rollInfo) + ' Cliquez une case en surbrillance.';
+        $('#online-dice-breakdown').innerHTML =
+          breakdownText(rollInfo) +
+          ' Cliquez une case en surbrillance.' +
+          reachHint(cells, Net.pendingDice.blocked, Net.pendingDice.finishing);
         const viewState = { board: room.board, riders: room.riders, finishColumn: room.finishColumn };
         ui.renderBoard($('#online-board'), viewState, {
           highlightCells: cells,

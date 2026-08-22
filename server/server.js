@@ -100,7 +100,7 @@ function processTurn(room) {
     setTimeout(() => {
       if (room.phase !== 'racing' || room.turnToken !== myTurnToken) return;
       const { rollInfo, target } = room.rollDice(rider);
-      broadcast(room, { type: 'diceRolled', riderId: rider.id, rollInfo, cells: target.cells });
+      broadcast(room, { type: 'diceRolled', riderId: rider.id, rollInfo, cells: target.cells, blocked: target.blocked, finishing: target.finishing });
       setTimeout(() => {
         if (room.phase !== 'racing' || room.turnToken !== myTurnToken) return;
         const cell = aiChooseCell(room.state, rider, target.cells);
@@ -177,7 +177,7 @@ wss.on('connection', (ws) => {
           if (!room.isClientsTurn(clientId, rider) || room.pendingRoll) return;
           const { rollInfo, target } = room.rollDice(rider);
           room.pendingRoll = { riderId: rider.id, rollInfo, target };
-          broadcast(room, { type: 'diceRolled', riderId: rider.id, rollInfo, cells: target.cells });
+          broadcast(room, { type: 'diceRolled', riderId: rider.id, rollInfo, cells: target.cells, blocked: target.blocked, finishing: target.finishing });
           break;
         }
 
